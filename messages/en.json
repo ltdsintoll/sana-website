@@ -1,0 +1,161 @@
+{
+  "header": {
+    "cta": "Open in Telegram"
+  },
+  "hero": {
+    "badge": "Now in beta",
+    "title": "Cycle tracking, quietly done.",
+    "subtitle": "Lavender calm instead of pink clichés. No ads, no data selling, no pressure. Just your cycle, right inside Telegram.",
+    "ctaPrimary": "Open in Telegram",
+    "ctaSecondary": "App Store · coming soon",
+    "ctaNote": "Free forever. Partner mode included."
+  },
+  "trust": {
+    "noDataSelling": "No data selling",
+    "gdpr": "GDPR compliant",
+    "womenCentered": "For everyone with a cycle",
+    "telegram": "Works in Telegram"
+  },
+  "how": {
+    "eyebrow": "How it works",
+    "title": "Three taps to start",
+    "subtitle": "No signup forms, no email verification. Just open the bot and go.",
+    "step1": {
+      "title": "Open the bot",
+      "description": "Tap the link, Telegram does the rest. No install, no account."
+    },
+    "step2": {
+      "title": "Log your cycle",
+      "description": "Add your last period, symptoms, moods. Takes under a minute."
+    },
+    "step3": {
+      "title": "Get insights",
+      "description": "Predictions, patterns, and gentle reminders — without the noise."
+    }
+  },
+  "features": {
+    "eyebrow": "Features",
+    "title": "Everything you need. Nothing you don't.",
+    "subtitle": "The essentials, thoughtfully designed. No upsells, no dark patterns.",
+    "calendar": {
+      "title": "Smart calendar",
+      "description": "Clear view of periods, ovulation, and fertile windows. Six calm themes."
+    },
+    "symptoms": {
+      "title": "Symptom tracking",
+      "description": "Log moods, cramps, sleep, energy. See patterns over time."
+    },
+    "partner": {
+      "title": "Partner mode",
+      "description": "Share what matters with someone you trust. Free, optional, revocable."
+    },
+    "safety": {
+      "title": "Safety first",
+      "description": "Teen-friendly tone. No pushy 'trying to conceive' banners or ads."
+    },
+    "trip": {
+      "title": "Travel-aware",
+      "description": "Jet lag shifts your cycle. Sana adjusts predictions with your trip."
+    },
+    "privacy": {
+      "title": "Private by design",
+      "description": "We don't sell data. We don't run ads. Your cycle stays yours."
+    }
+  },
+  "screenshots": {
+    "eyebrow": "A closer look",
+    "title": "Calm by default",
+    "subtitle": "Six themes, light and dark mode, every detail considered.",
+    "calendar": {
+      "label": "Calendar",
+      "title": "October"
+    },
+    "symptoms": {
+      "label": "Today",
+      "title": "How do you feel?"
+    },
+    "partner": {
+      "label": "Partner",
+      "title": "Shared with Alex"
+    },
+    "insights": {
+      "label": "Insights",
+      "title": "Your cycle"
+    }
+  },
+  "privacy_section": {
+    "eyebrow": "Privacy",
+    "title": "Your data stays yours.",
+    "subtitle": "We built Sana on a simple promise: health data is the most personal kind there is. We treat it that way.",
+    "encryption": {
+      "title": "Encrypted end-to-end",
+      "description": "Your entries are encrypted in transit and at rest. Only you can read them."
+    },
+    "noTracking": {
+      "title": "No tracking, no ads",
+      "description": "No third-party analytics on your cycle data. No ad networks. No 'partners'."
+    },
+    "ownership": {
+      "title": "You own it",
+      "description": "Export or delete your data any time. One tap, no forms, no 'are you sure' loops."
+    }
+  },
+  "faq": {
+    "eyebrow": "FAQ",
+    "title": "Questions, answered.",
+    "q1": {
+      "q": "Is Sana really free?",
+      "a": "Yes. Core tracking, partner mode, and all six themes are free forever. No paywalls hiding basic features."
+    },
+    "q2": {
+      "q": "Do I need to install an app?",
+      "a": "No. Sana runs inside Telegram as a Mini App. Open the bot, and you're in. A standalone iOS/Android app is on the way."
+    },
+    "q3": {
+      "q": "Do you sell my data?",
+      "a": "Never. No ad networks, no data brokers, no 'research partners'. Your cycle data is not a product."
+    },
+    "q4": {
+      "q": "Is Sana only for women?",
+      "a": "No. Sana is for anyone with a cycle. Language is inclusive, and we avoid gendered assumptions wherever possible."
+    },
+    "q5": {
+      "q": "How does partner mode work?",
+      "a": "You share a link with someone you trust. They see only what you choose — cycle day, mood, or nothing at all. You can revoke access any time."
+    },
+    "q6": {
+      "q": "Is Sana safe for teens?",
+      "a": "Yes. There are no 'trying to conceive' features, no ads, no pressure. The tone is calm and informational, not clinical or infantilizing."
+    },
+    "q7": {
+      "q": "Can I export or delete my data?",
+      "a": "Yes. One tap in settings to export a JSON file. One tap to delete everything — no forms, no waiting, no recovery emails."
+    },
+    "q8": {
+      "q": "What's in Sana Premium?",
+      "a": "Premium (coming later) will add deeper insights, advanced analytics, and unlimited history. Everything essential stays free."
+    }
+  },
+  "email": {
+    "eyebrow": "Stay in the loop",
+    "title": "Get updates when we ship.",
+    "subtitle": "One email when Sana launches publicly. No newsletter spam, no marketing sequences.",
+    "placeholder": "you@example.com",
+    "submit": "Notify me",
+    "loading": "Sending…",
+    "success": "You're on the list. We'll be in touch.",
+    "consent": "I agree to receive launch updates and accept the <privacy>Privacy Policy</privacy>.",
+    "errorConsent": "Please accept the privacy policy to continue.",
+    "errorGeneric": "Something went wrong. Please try again."
+  },
+  "footer": {
+    "tagline": "Cycle tracking, quietly done. Lavender calm instead of pink clichés.",
+    "product": "Product",
+    "telegram": "Open in Telegram",
+    "legal": "Legal",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service",
+    "rights": "All rights reserved.",
+    "madeWith": "Made with care in the EU."
+  }
+}

@@ -1,0 +1,161 @@
+{
+  "header": {
+    "cta": "Abrir en Telegram"
+  },
+  "hero": {
+    "badge": "Ahora en beta",
+    "title": "Seguimiento del ciclo, sin ruido.",
+    "subtitle": "Calma lavanda en lugar de clichés rosas. Sin anuncios, sin venta de datos, sin presión. Solo tu ciclo — directamente en Telegram.",
+    "ctaPrimary": "Abrir en Telegram",
+    "ctaSecondary": "App Store · próximamente",
+    "ctaNote": "Gratis para siempre. Modo pareja incluido."
+  },
+  "trust": {
+    "noDataSelling": "No vendemos datos",
+    "gdpr": "Cumple con el GDPR",
+    "womenCentered": "Para cualquiera con ciclo",
+    "telegram": "Funciona en Telegram"
+  },
+  "how": {
+    "eyebrow": "Cómo funciona",
+    "title": "Tres toques para empezar",
+    "subtitle": "Sin formularios de registro ni verificación por email. Abres el bot y listo.",
+    "step1": {
+      "title": "Abre el bot",
+      "description": "Toca el enlace, Telegram hace el resto. Nada que instalar, ninguna cuenta."
+    },
+    "step2": {
+      "title": "Registra tu ciclo",
+      "description": "Añade tu última menstruación, síntomas y estado de ánimo. En menos de un minuto."
+    },
+    "step3": {
+      "title": "Obtén claridad",
+      "description": "Predicciones, patrones y recordatorios suaves — sin ruido."
+    }
+  },
+  "features": {
+    "eyebrow": "Funciones",
+    "title": "Todo lo necesario. Nada de más.",
+    "subtitle": "Lo esencial, diseñado con cuidado. Sin ventas agresivas ni patrones oscuros.",
+    "calendar": {
+      "title": "Calendario inteligente",
+      "description": "Vista clara de periodos, ovulación y ventanas fértiles. Seis temas tranquilos."
+    },
+    "symptoms": {
+      "title": "Seguimiento de síntomas",
+      "description": "Registra ánimo, dolores, sueño y energía. Descubre patrones con el tiempo."
+    },
+    "partner": {
+      "title": "Modo pareja",
+      "description": "Comparte lo importante con alguien de confianza. Gratis, opcional, revocable."
+    },
+    "safety": {
+      "title": "Seguridad primero",
+      "description": "Tono respetuoso. Sin banners invasivos de «buscando embarazo» ni anuncios."
+    },
+    "trip": {
+      "title": "Adaptado a los viajes",
+      "description": "El jet lag desplaza tu ciclo. Sana ajusta la predicción según tu viaje."
+    },
+    "privacy": {
+      "title": "Privada por diseño",
+      "description": "No vendemos datos. No hay anuncios. Tu ciclo sigue siendo tuyo."
+    }
+  },
+  "screenshots": {
+    "eyebrow": "Más de cerca",
+    "title": "Calma por defecto",
+    "subtitle": "Seis temas, modo claro y oscuro, cada detalle cuidado.",
+    "calendar": {
+      "label": "Calendario",
+      "title": "Octubre"
+    },
+    "symptoms": {
+      "label": "Hoy",
+      "title": "¿Cómo te sientes?"
+    },
+    "partner": {
+      "label": "Pareja",
+      "title": "Compartido con Alex"
+    },
+    "insights": {
+      "label": "Resumen",
+      "title": "Tu ciclo"
+    }
+  },
+  "privacy_section": {
+    "eyebrow": "Privacidad",
+    "title": "Tus datos siguen siendo tuyos.",
+    "subtitle": "Sana se basa en una promesa simple: los datos de salud son los más personales que existen. Los tratamos así.",
+    "encryption": {
+      "title": "Cifrado de extremo a extremo",
+      "description": "Tus registros se cifran en tránsito y en reposo. Solo tú puedes leerlos."
+    },
+    "noTracking": {
+      "title": "Sin rastreo, sin anuncios",
+      "description": "Ningún análisis de terceros sobre tus datos de ciclo. Ninguna red publicitaria. Ningún «socio»."
+    },
+    "ownership": {
+      "title": "Tú eres dueña",
+      "description": "Exporta o elimina tus datos cuando quieras. Un toque, sin formularios ni confirmaciones."
+    }
+  },
+  "faq": {
+    "eyebrow": "Preguntas frecuentes",
+    "title": "Respuestas claras.",
+    "q1": {
+      "q": "¿Sana es realmente gratis?",
+      "a": "Sí. Seguimiento básico, modo pareja y los seis temas son gratis para siempre. Sin funciones esenciales bloqueadas tras un muro de pago."
+    },
+    "q2": {
+      "q": "¿Necesito instalar una app?",
+      "a": "No. Sana funciona dentro de Telegram como Mini App. Abre el bot y ya está. Una app iOS/Android independiente está en camino."
+    },
+    "q3": {
+      "q": "¿Venden mis datos?",
+      "a": "Nunca. Sin redes publicitarias, sin intermediarios de datos, sin «socios de investigación». Tus datos de ciclo no son un producto."
+    },
+    "q4": {
+      "q": "¿Sana es solo para mujeres?",
+      "a": "No. Sana es para cualquier persona con ciclo. El lenguaje es inclusivo y evitamos suposiciones de género siempre que es posible."
+    },
+    "q5": {
+      "q": "¿Cómo funciona el modo pareja?",
+      "a": "Compartes un enlace con alguien de confianza. Esa persona ve solo lo que tú elijas: día del ciclo, estado de ánimo, o nada. Puedes revocar el acceso cuando quieras."
+    },
+    "q6": {
+      "q": "¿Sana es segura para adolescentes?",
+      "a": "Sí. No hay funciones de «búsqueda de embarazo», ni anuncios, ni presión. El tono es tranquilo e informativo, sin frialdad clínica ni excesos infantiles."
+    },
+    "q7": {
+      "q": "¿Puedo exportar o eliminar mis datos?",
+      "a": "Sí. Un toque en ajustes y tienes un JSON exportado. Otro toque y todo se elimina. Sin formularios, sin esperas, sin emails de recuperación."
+    },
+    "q8": {
+      "q": "¿Qué incluirá Sana Premium?",
+      "a": "Premium (llegará más adelante) añadirá análisis más profundos, estadísticas avanzadas e historial ilimitado. Todo lo esencial seguirá siendo gratis."
+    }
+  },
+  "email": {
+    "eyebrow": "Mantente al día",
+    "title": "Te avisamos cuando lancemos.",
+    "subtitle": "Un correo cuando Sana esté disponible. Sin newsletters, sin secuencias de marketing.",
+    "placeholder": "tu@ejemplo.com",
+    "submit": "Avísame",
+    "loading": "Enviando…",
+    "success": "Estás en la lista. Te escribiremos pronto.",
+    "consent": "Acepto recibir actualizaciones del lanzamiento y la <privacy>Política de privacidad</privacy>.",
+    "errorConsent": "Acepta la política de privacidad para continuar.",
+    "errorGeneric": "Algo salió mal. Inténtalo de nuevo."
+  },
+  "footer": {
+    "tagline": "Seguimiento del ciclo, sin ruido. Calma lavanda en lugar de clichés rosas.",
+    "product": "Producto",
+    "telegram": "Abrir en Telegram",
+    "legal": "Legal",
+    "privacy": "Política de privacidad",
+    "terms": "Términos del servicio",
+    "rights": "Todos los derechos reservados.",
+    "madeWith": "Hecho con cuidado en la UE."
+  }
+}
