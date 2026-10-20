@@ -18,6 +18,13 @@ export default function Header() {
         </Link>
         <div className="flex items-center gap-2">
           <LanguageSwitcher />
+          <Link
+            href="/app"
+            prefetch={false}
+            className="text-text hover:bg-surface-soft inline-flex min-h-10 items-center rounded-full px-4 py-2 text-sm font-medium transition-colors"
+          >
+            {t("signIn")}
+          </Link>
           <a
             href="https://t.me/sanacyclebot"
             target="_blank"

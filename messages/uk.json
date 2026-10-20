@@ -1,6 +1,7 @@
 {
   "header": {
-    "cta": "Відкрити в Telegram"
+    "cta": "Відкрити в Telegram",
+    "signIn": "Увійти"
   },
   "hero": {
     "badge": "Зараз у беті",

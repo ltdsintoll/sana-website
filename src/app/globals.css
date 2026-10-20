@@ -1,5 +1,6 @@
 @import "tailwindcss" source(".");
 @config "../../tailwind.config.ts";
+@source "../cabinet";
 
 body {
   @apply bg-surface text-ink antialiased;
@@ -73,4 +74,140 @@ h4 {
 .prose-sana strong {
   color: #1a1a1f;
   font-weight: 500;
+}
+
+/* ------------------------------------------------------------------ */
+/* Personal cabinet (/app). Tokens switch with the system colour theme. */
+@theme inline {
+  --color-c-bg: var(--cab-bg);
+  --color-c-card: var(--cab-card);
+  --color-c-raised: var(--cab-raised);
+  --color-c-ink: var(--cab-ink);
+  --color-c-muted: var(--cab-muted);
+  --color-c-subtle: var(--cab-subtle);
+  --color-c-line: var(--cab-line);
+  --color-c-accent: var(--cab-accent);
+  --color-c-accent-ink: var(--cab-accent-ink);
+  --color-c-accent-soft: var(--cab-accent-soft);
+  --color-c-period: var(--cab-period);
+  --color-c-period-soft: var(--cab-period-soft);
+  --color-c-period-ink: var(--cab-period-ink);
+  --color-c-fertile: var(--cab-fertile);
+  --color-c-fertile-soft: var(--cab-fertile-soft);
+  --color-c-pms: var(--cab-pms);
+  --color-c-pms-soft: var(--cab-pms-soft);
+  --color-c-late: var(--cab-late);
+  --color-c-late-soft: var(--cab-late-soft);
+  --color-c-preg: var(--cab-preg);
+  --color-c-preg-soft: var(--cab-preg-soft);
+  --color-c-danger: var(--cab-danger);
+}
+
+.cab {
+  --cab-bg: #f7f6fb;
+  --cab-card: #ffffff;
+  --cab-raised: #f1eff8;
+  --cab-ink: #1a1a1f;
+  --cab-muted: #5f5e69;
+  --cab-subtle: #8e8d99;
+  --cab-line: #e7e5ef;
+  --cab-accent: #6b5fb8;
+  --cab-accent-ink: #ffffff;
+  --cab-accent-soft: #edeafb;
+  --cab-period: #c94f7c;
+  --cab-period-soft: #fbe6ee;
+  --cab-period-ink: #ffffff;
+  --cab-fertile: #1f8a80;
+  --cab-fertile-soft: #ddf3f0;
+  --cab-pms: #a86a12;
+  --cab-pms-soft: #fbf0dc;
+  --cab-late: #c2410c;
+  --cab-late-soft: #fdeadf;
+  --cab-preg: #7c5cc4;
+  --cab-preg-soft: #efe9fb;
+  --cab-danger: #c0263d;
+  color-scheme: light;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (prefers-color-scheme: dark) {
+  .cab {
+    --cab-bg: #111015;
+    --cab-card: #1b1a21;
+    --cab-raised: #24222c;
+    --cab-ink: #f2f1f7;
+    --cab-muted: #b4b2c0;
+    --cab-subtle: #858391;
+    --cab-line: #2e2c37;
+    --cab-accent: #a99ef2;
+    --cab-accent-ink: #15131c;
+    --cab-accent-soft: #2a2542;
+    --cab-period: #ec7aa5;
+    --cab-period-soft: #3b1d2a;
+    --cab-period-ink: #1a0d13;
+    --cab-fertile: #5cc8bd;
+    --cab-fertile-soft: #13302d;
+    --cab-pms: #e2a54b;
+    --cab-pms-soft: #33281a;
+    --cab-late: #f08a5d;
+    --cab-late-soft: #3a2117;
+    --cab-preg: #b49cf5;
+    --cab-preg-soft: #2b2342;
+    --cab-danger: #f27a8c;
+    color-scheme: dark;
+  }
+}
+
+body:has(.cab) {
+  background: var(--cab-bg);
+}
+
+.cab .pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+.cab .pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.cab .pb-tabbar {
+  padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
+}
+.cab .bottom-tabbar {
+  bottom: calc(4.5rem + env(safe-area-inset-bottom));
+}
+.cab .px-safe {
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+}
+.cab .predicted-ring {
+  background-image: repeating-linear-gradient(
+    135deg,
+    var(--cab-period-soft) 0 4px,
+    transparent 4px 7px
+  );
+}
+@media (prefers-reduced-motion: no-preference) {
+  .cab .sheet-in {
+    animation: cab-sheet-in 180ms ease-out;
+  }
+  .cab .fade-in {
+    animation: cab-fade-in 160ms ease-out;
+  }
+}
+@keyframes cab-sheet-in {
+  from {
+    transform: translateY(24px);
+    opacity: 0.6;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes cab-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
