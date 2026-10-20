@@ -4,8 +4,6 @@ import { setRequestLocale } from "next-intl/server";
 import type { ReactNode } from "react";
 import { type Locale, locales } from "@/i18n/config";
 import { routing } from "@/i18n/routing";
-import Footer from "@/components/Footer";
-import Header from "@/components/Header";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://sanacycle.com";
 
@@ -92,11 +90,5 @@ export default async function LocaleLayout({ children, params }: Props) {
   }
 
   setRequestLocale(locale);
-  return (
-    <>
-      <Header />
-      {children}
-      <Footer />
-    </>
-  );
+  return children;
 }

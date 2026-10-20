@@ -1,4 +1,3 @@
-import { GoogleAnalytics } from "@next/third-parties/google";
 import { Inter } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
@@ -23,7 +22,10 @@ export default async function RootLayout({
 }: Readonly<{
   children: ReactNode;
 }>) {
-  const [locale, messages] = await Promise.all([getLocale(), getMessages()]);
+  const [locale, allMessages] = await Promise.all([getLocale(), getMessages()]);
+  // Cabinet strings are provided by /[locale]/app/layout.tsx only.
+  const { cab: _cab, ...messages } = allMessages as Record<string, unknown>;
+  void _cab;
 
   return (
     <html lang={locale} className={inter.variable} suppressHydrationWarning>
@@ -31,9 +33,6 @@ export default async function RootLayout({
         <NextIntlClientProvider messages={messages}>
           {children}
         </NextIntlClientProvider>
-        {process.env.NEXT_PUBLIC_GA_ID && (
-          <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID} />
-        )}
       </body>
     </html>
   );
