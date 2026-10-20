@@ -2,7 +2,7 @@
 
 import { Clock, Share, SquarePlus } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import type { CalendarDay, DayLog, Ymd } from "../api/types";
 import { addDays, fmtDate } from "../lib/dates";
 import { useInstall } from "../lib/install";
@@ -139,9 +139,11 @@ export function PastDatePicker({
   const t = useTranslations("cab");
   const locale = useLocale();
   const [value, setValue] = useState(today);
-  useEffect(() => {
-    if (open) setValue(today);
-  }, [open, today]);
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) setValue(today); // every opening starts at today
+  }
   const quick = [0, 1, 2, 3].map((n) => addDays(today, -n)).filter((d) => !min || d >= min);
   return (
     <Sheet open={open} onClose={onClose} title={title} labelClose={t("common.close")}>
@@ -171,28 +173,35 @@ export function PastDatePicker({
 }
 
 const HINT_KEY = "sana-install-hint-dismissed";
+const hintListeners = new Set<() => void>();
+function subscribeHint(l: () => void) {
+  hintListeners.add(l);
+  return () => {
+    hintListeners.delete(l);
+  };
+}
+function readHint(): boolean {
+  try {
+    return localStorage.getItem(HINT_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
 
 /** "Add to Home Screen" instructions for iOS, install button where supported. */
 export function InstallHint({ compact = false }: { compact?: boolean }) {
   const t = useTranslations("cab.install");
   const info = useInstall();
-  const [dismissed, setDismissed] = useState(true);
-  useEffect(() => {
-    try {
-      setDismissed(localStorage.getItem(HINT_KEY) === "1");
-    } catch {
-      setDismissed(false);
-    }
-  }, []);
+  const dismissed = useSyncExternalStore(subscribeHint, readHint, () => true);
   if (info.standalone) return compact ? null : <p className="text-sm text-c-muted">{t("installed")}</p>;
   if (compact && (dismissed || (!info.ios && !info.canPrompt))) return null;
   const dismiss = () => {
-    setDismissed(true);
     try {
       localStorage.setItem(HINT_KEY, "1");
     } catch {
       /* ignore */
     }
+    hintListeners.forEach((l) => l());
   };
   const body = info.ios ? (
     <ol className="space-y-2 text-sm text-c-muted">

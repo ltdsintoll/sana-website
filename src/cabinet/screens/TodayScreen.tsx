@@ -9,7 +9,7 @@ import { addDays, diffDays, fmtDate, fmtRange } from "../lib/dates";
 import { useCabinet } from "../state/hooks";
 import { setSelectedDay, useCycleView } from "../state/view";
 import { DayCell, InstallHint, PastDatePicker, kindLabelKey } from "../ui/cycle";
-import { FullScreenSpinner, Screen } from "../ui/layout";
+import { CycleLoading, Screen } from "../ui/layout";
 import { Button, Card } from "../ui/primitives";
 import { useUI } from "../ui/ui-context";
 
@@ -21,7 +21,7 @@ export default function TodayScreen() {
   const { symptoms } = useCabinet();
   const router = useRouter();
 
-  if (!cycle) return <FullScreenSpinner />;
+  if (!cycle) return <CycleLoading />;
   const s = cycle.status;
   const todayLog = view.log(today);
   const todaySymptoms = (symptoms[today] ?? []).filter((x) => x.value);

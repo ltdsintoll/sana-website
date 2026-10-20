@@ -1,22 +1,47 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 type BeforeInstallPromptEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
 
 let deferred: BeforeInstallPromptEvent | null = null;
 const listeners = new Set<() => void>();
+const notify = () => listeners.forEach((l) => l());
 
 if (typeof window !== "undefined") {
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();
     deferred = e as BeforeInstallPromptEvent;
-    listeners.forEach((l) => l());
+    notify();
   });
   window.addEventListener("appinstalled", () => {
     deferred = null;
-    listeners.forEach((l) => l());
+    notify();
   });
+}
+
+function subscribe(l: () => void) {
+  listeners.add(l);
+  const mq = window.matchMedia("(display-mode: standalone)");
+  mq.addEventListener?.("change", l);
+  return () => {
+    listeners.delete(l);
+    mq.removeEventListener?.("change", l);
+  };
+}
+
+/** Opened from the Home Screen (iOS) or as an installed app (Android/desktop). */
+export function isStandalone(): boolean {
+  if (typeof window === "undefined") return false;
+  const nav = navigator as Navigator & { standalone?: boolean };
+  return !!nav.standalone || window.matchMedia("(display-mode: standalone)").matches;
+}
+
+/** iPhone/iPad, including iPadOS that reports itself as a Mac. */
+export function isIOS(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  return /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
 }
 
 export type InstallInfo = {
@@ -27,30 +52,18 @@ export type InstallInfo = {
 };
 
 export function useInstall(): InstallInfo {
-  const [, force] = useState(0);
-  const [env, setEnv] = useState({ standalone: false, ios: false });
-  useEffect(() => {
-    const l = () => force((n) => n + 1);
-    listeners.add(l);
-    const nav = navigator as Navigator & { standalone?: boolean };
-    const ua = navigator.userAgent;
-    const ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
-    setEnv({
-      standalone: !!nav.standalone || window.matchMedia("(display-mode: standalone)").matches,
-      ios,
-    });
-    return () => {
-      listeners.delete(l);
-    };
-  }, []);
+  const standalone = useSyncExternalStore(subscribe, isStandalone, () => false);
+  const ios = useSyncExternalStore(subscribe, isIOS, () => false);
+  const canPrompt = useSyncExternalStore(subscribe, () => !!deferred, () => false);
   return {
-    ...env,
-    canPrompt: !!deferred,
+    standalone,
+    ios,
+    canPrompt,
     prompt: async () => {
       if (!deferred) return;
       await deferred.prompt();
       deferred = null;
-      force((n) => n + 1);
+      notify();
     },
   };
 }

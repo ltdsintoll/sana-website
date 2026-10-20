@@ -6,7 +6,8 @@ import { useEffect, type ReactNode } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { useCabinet } from "../state/hooks";
 import type { Snapshot } from "../state/store";
-import { Spinner } from "./primitives";
+import { store } from "../state/store";
+import { Button, Spinner } from "./primitives";
 
 export function Screen({ title, action, children, tabbar = true }: { title?: ReactNode; action?: ReactNode; children: ReactNode; tabbar?: boolean }) {
   return (
@@ -48,10 +49,35 @@ export function SyncPill() {
   return null;
 }
 
-export function FullScreenSpinner() {
+/**
+ * Shown while the first cycle state is loading. When the API cannot be reached
+ * and nothing is cached yet, shows an explanation and a retry button instead
+ * of spinning forever.
+ */
+export function CycleLoading() {
+  const t = useTranslations("cab");
+  const { unreachable, online, syncing } = useCabinet();
+  if (!unreachable && online) return <FullScreenSpinner />;
   return (
-    <div className="flex min-h-[70dvh] items-center justify-center text-c-accent">
+    <main className="px-safe mx-auto flex min-h-[70dvh] w-full max-w-md flex-col items-center justify-center gap-3 text-center">
+      <CloudOff className="h-10 w-10 text-c-subtle" aria-hidden />
+      <h1 className="text-xl font-medium text-c-ink">{t("errors.unreachableTitle")}</h1>
+      <p className="text-base text-c-muted" role="status">
+        {t("errors.unreachableBody")}
+      </p>
+      <Button variant="soft" loading={syncing} onClick={() => void store.refresh({ force: true })}>
+        {t("common.retry")}
+      </Button>
+    </main>
+  );
+}
+
+export function FullScreenSpinner() {
+  const t = useTranslations("cab.common");
+  return (
+    <div className="flex min-h-[70dvh] items-center justify-center text-c-accent" role="status" aria-busy="true">
       <Spinner className="h-8 w-8" />
+      <span className="sr-only">{t("loading")}</span>
     </div>
   );
 }

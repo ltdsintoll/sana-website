@@ -34,7 +34,11 @@
     "forecast": "previsión",
     "notContraception": "La previsión no es un método anticonceptivo.",
     "daysUnit": "días",
-    "back": "Atrás"
+    "back": "Atrás",
+    "lessDay": "Un día menos",
+    "moreDay": "Un día más",
+    "retry": "Reintentar",
+    "loading": "Cargando…"
   },
   "errors": {
     "futureDate": "Todavía no se pueden marcar días futuros.",
@@ -43,7 +47,9 @@
     "sessionExpired": "Tu sesión ha terminado. Vuelve a iniciar sesión.",
     "generic": "Algo salió mal. Inténtalo de nuevo.",
     "network": "Sin conexión. Revisa internet e inténtalo de nuevo.",
-    "offlineFeature": "Disponible cuando haya conexión."
+    "offlineFeature": "Disponible cuando haya conexión.",
+    "unreachableTitle": "No hay conexión con Sana",
+    "unreachableBody": "Revisa tu conexión a internet. Tus datos aparecerán en cuanto vuelva la conexión."
   },
   "sync": {
     "savedOffline": "Se enviará cuando haya conexión",

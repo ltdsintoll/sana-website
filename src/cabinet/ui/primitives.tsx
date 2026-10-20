@@ -109,6 +109,8 @@ export function Stepper({
   onChange,
   label,
   unit,
+  labelLess = "−",
+  labelMore = "+",
 }: {
   value: number;
   min: number;
@@ -116,12 +118,15 @@ export function Stepper({
   onChange: (v: number) => void;
   label: string;
   unit?: string;
+  /** Accessible names of the buttons, e.g. "Fewer days" / "More days". */
+  labelLess?: string;
+  labelMore?: string;
 }) {
   return (
     <div className="flex items-center justify-between gap-3" role="group" aria-label={label}>
       <button
         type="button"
-        aria-label="−"
+        aria-label={labelLess}
         disabled={value <= min}
         onClick={() => onChange(Math.max(min, value - 1))}
         className="h-12 w-12 rounded-2xl bg-c-raised text-2xl text-c-ink disabled:opacity-40"
@@ -134,7 +139,7 @@ export function Stepper({
       </output>
       <button
         type="button"
-        aria-label="+"
+        aria-label={labelMore}
         disabled={value >= max}
         onClick={() => onChange(Math.min(max, value + 1))}
         className="h-12 w-12 rounded-2xl bg-c-raised text-2xl text-c-ink disabled:opacity-40"
@@ -176,6 +181,8 @@ export function Chip({
   );
 }
 
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), iframe, [tabindex]:not([tabindex="-1"])';
+
 /** Bottom sheet on phones, centred dialog on wide screens. */
 export function Sheet({
   open,
@@ -192,12 +199,36 @@ export function Sheet({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const titleId = useId();
+  // Callers pass inline closures: keep the latest one without re-running the
+  // effect below (that would move focus back to the dialog on every render).
+  const closeRef = useRef(onClose);
+  useEffect(() => {
+    closeRef.current = onClose;
+  }, [onClose]);
   useEffect(() => {
     if (!open) return;
     const prev = document.activeElement as HTMLElement | null;
     ref.current?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        closeRef.current();
+        return;
+      }
+      if (e.key !== "Tab" || !ref.current) return;
+      // Keep keyboard focus inside the dialog.
+      const items = [...ref.current.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((el) => el.offsetParent !== null);
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey && (active === first || active === ref.current)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener("keydown", onKey);
     const overflow = document.body.style.overflow;
@@ -207,7 +238,7 @@ export function Sheet({
       document.body.style.overflow = overflow;
       prev?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
   if (!open) return null;
   return (
     <div className="fade-in fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" onClick={onClose}>
@@ -231,7 +262,7 @@ export function Sheet({
             aria-label={labelClose}
             className="-mr-2 mt-1 flex h-11 w-11 items-center justify-center rounded-full text-c-muted active:bg-c-raised"
           >
-            <X className="h-5 w-5" />
+            <X className="h-5 w-5" aria-hidden />
           </button>
         </div>
         <div className="px-5 pb-5">{children}</div>

@@ -13,9 +13,9 @@ import { store } from "../state/store";
 import { useCycleView } from "../state/view";
 import { InstallHint, PastDatePicker } from "../ui/cycle";
 import { EmailCodeForm, MergeSheet } from "../ui/email";
-import { FullScreenSpinner, Screen } from "../ui/layout";
+import { CycleLoading, Screen } from "../ui/layout";
 import { Button, Card, SectionTitle, Sheet, Spinner, Stepper, Switch } from "../ui/primitives";
-import { TelegramWidget, useTelegramDeepLink } from "../ui/telegram";
+import { TelegramWidget, isBotUsername, useTelegramDeepLink } from "../ui/telegram";
 import { useUI } from "../ui/ui-context";
 
 const LANGS: Array<{ code: Locale; label: string }> = [
@@ -35,8 +35,8 @@ export default function SettingsScreen() {
   useEffect(() => {
     if (window.location.hash === "#pregnancy") document.getElementById("pregnancy")?.scrollIntoView();
   }, [cycle]);
-  if (!me || !cycle) return <FullScreenSpinner />;
-  const bot = config?.telegramBotUsername ?? "HerCycleBot";
+  if (!me || !cycle) return <CycleLoading />;
+  const bot = isBotUsername(config?.telegramBotUsername) ? config.telegramBotUsername : "HerCycleBot";
 
   return (
     <Screen title={t("settings.title")}>
@@ -75,8 +75,7 @@ function AccountCard({ me, config }: { me: Me; config: AuthConfig | null }) {
 
   async function linked(user: Me, kind: "email" | "telegram") {
     setSheet(null);
-    store.setMe(user);
-    await store.refresh({ force: true });
+    await store.linked(user);
     ui.toast(kind === "email" ? t("link.emailDone") : t("link.telegramDone"));
   }
 
@@ -165,7 +164,7 @@ function LinkTelegram({ config, onDone }: { config: AuthConfig | null; onDone: (
             href={tg.state.botUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-[#2AABEE] px-5 text-lg font-medium text-white"
+            className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-[#1f7ab8] px-5 text-lg font-medium text-white"
           >
             <Send className="h-5 w-5" aria-hidden /> {t("login.openTelegram")}
           </a>
@@ -174,7 +173,7 @@ function LinkTelegram({ config, onDone }: { config: AuthConfig | null; onDone: (
           </p>
         </>
       ) : (
-        <Button size="lg" block loading={tg.state.kind === "starting"} onClick={() => void tg.start()} className="!bg-[#2AABEE] !text-white">
+        <Button size="lg" block loading={tg.state.kind === "starting"} onClick={() => void tg.start()} className="!bg-[#1f7ab8] !text-white">
           <Send className="h-5 w-5" aria-hidden /> {t("link.viaBot")}
         </Button>
       )}
@@ -221,10 +220,14 @@ function CycleCard() {
   const [cycleLength, setCycleLength] = useState<number | null>(s.cycleLength);
   const [periodLength, setPeriodLength] = useState<number | null>(s.periodLength);
   const [busy, setBusy] = useState(false);
-  useEffect(() => {
+  const serverKey = `${s.cycleLength}|${s.periodLength}`;
+  const [shownKey, setShownKey] = useState(serverKey);
+  if (serverKey !== shownKey) {
+    // Saved here or changed in Telegram: show the server values.
+    setShownKey(serverKey);
     setCycleLength(s.cycleLength);
     setPeriodLength(s.periodLength);
-  }, [s.cycleLength, s.periodLength]);
+  }
   const dirty = cycleLength !== s.cycleLength || periodLength !== s.periodLength;
 
   async function save() {
@@ -272,7 +275,7 @@ function LengthRow(p: { label: string; hint: string; value: number | null; fallb
         </span>
         <Switch checked={p.value === null} label={<span className="text-sm text-c-muted">{t("settings.auto")}</span>} onChange={(auto) => p.onChange(auto ? null : p.fallback)} />
       </div>
-      {p.value !== null ? <Stepper value={p.value} min={p.min} max={p.max} onChange={p.onChange} label={p.label} unit={t("common.daysUnit")} /> : null}
+      {p.value !== null ? <Stepper value={p.value} min={p.min} max={p.max} onChange={p.onChange} label={p.label} unit={t("common.daysUnit")} labelLess={t("common.lessDay")} labelMore={t("common.moreDay")} /> : null}
     </div>
   );
 }

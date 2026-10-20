@@ -227,13 +227,14 @@ function LengthStep(p: {
   dontKnow: string;
   nextLabel: string;
 }) {
+  const tc = useTranslations("cab");
   const v = p.value > 0 ? p.value : p.min === 1 ? 5 : 28;
   return (
     <section className="flex flex-1 flex-col">
       <h1 className="mt-6 text-3xl font-light tracking-tight">{p.title}</h1>
       <p className="mt-2 text-base text-c-muted">{p.hint}</p>
       <Card className="mt-8 py-6">
-        <Stepper value={v} min={p.min} max={p.max} onChange={p.onChange} label={p.title} unit={p.unit} />
+        <Stepper value={v} min={p.min} max={p.max} onChange={p.onChange} label={p.title} unit={p.unit} labelLess={tc("common.lessDay")} labelMore={tc("common.moreDay")} />
       </Card>
       <div className="pb-safe sticky bottom-0 mt-auto flex flex-col gap-2 bg-c-bg pb-2 pt-4">
         <Button size="lg" block loading={p.busy} onClick={() => p.onNext(true)}>

@@ -77,7 +77,8 @@ h4 {
 }
 
 /* ------------------------------------------------------------------ */
-/* Personal cabinet (/app). Tokens switch with the system colour theme. */
+/* Personal cabinet (/app). Tokens switch with the system colour theme.
+   Text colours keep >= 4.5:1 contrast on their backgrounds (WCAG AA). */
 @theme inline {
   --color-c-bg: var(--cab-bg);
   --color-c-card: var(--cab-card);
@@ -101,6 +102,7 @@ h4 {
   --color-c-preg: var(--cab-preg);
   --color-c-preg-soft: var(--cab-preg-soft);
   --color-c-danger: var(--cab-danger);
+  --color-c-danger-ink: var(--cab-danger-ink);
 }
 
 .cab {
@@ -109,23 +111,24 @@ h4 {
   --cab-raised: #f1eff8;
   --cab-ink: #1a1a1f;
   --cab-muted: #5f5e69;
-  --cab-subtle: #8e8d99;
+  --cab-subtle: #6c6b77;
   --cab-line: #e7e5ef;
-  --cab-accent: #6b5fb8;
+  --cab-accent: #6457b3;
   --cab-accent-ink: #ffffff;
   --cab-accent-soft: #edeafb;
-  --cab-period: #c94f7c;
+  --cab-period: #b23e6b;
   --cab-period-soft: #fbe6ee;
   --cab-period-ink: #ffffff;
-  --cab-fertile: #1f8a80;
+  --cab-fertile: #16716a;
   --cab-fertile-soft: #ddf3f0;
-  --cab-pms: #a86a12;
+  --cab-pms: #875408;
   --cab-pms-soft: #fbf0dc;
-  --cab-late: #c2410c;
+  --cab-late: #b13a0a;
   --cab-late-soft: #fdeadf;
   --cab-preg: #7c5cc4;
   --cab-preg-soft: #efe9fb;
   --cab-danger: #c0263d;
+  --cab-danger-ink: #ffffff;
   color-scheme: light;
   -webkit-tap-highlight-color: transparent;
 }
@@ -154,6 +157,7 @@ h4 {
     --cab-preg: #b49cf5;
     --cab-preg-soft: #2b2342;
     --cab-danger: #f27a8c;
+    --cab-danger-ink: #1a0d13;
     color-scheme: dark;
   }
 }

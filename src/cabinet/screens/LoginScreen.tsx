@@ -72,7 +72,7 @@ export default function LoginScreen() {
                 href={tg.state.botUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-[#2AABEE] px-5 text-lg font-medium text-white active:opacity-90"
+                className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-[#1f7ab8] px-5 text-lg font-medium text-white active:opacity-90"
               >
                 <Send className="h-5 w-5" aria-hidden />
                 {t("login.openTelegram")}
@@ -87,7 +87,7 @@ export default function LoginScreen() {
             </div>
           ) : (
             <>
-              <Button size="lg" block loading={tg.state.kind === "starting"} onClick={() => void tg.start()} className="!bg-[#2AABEE] !text-white">
+              <Button size="lg" block loading={tg.state.kind === "starting"} onClick={() => void tg.start()} className="!bg-[#1f7ab8] !text-white">
                 <Send className="h-5 w-5" aria-hidden />
                 {t("login.withTelegram")}
               </Button>

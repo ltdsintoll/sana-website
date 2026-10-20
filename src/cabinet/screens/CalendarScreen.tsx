@@ -20,7 +20,7 @@ import {
 import { store } from "../state/store";
 import { setSelectedDay, useCycleView } from "../state/view";
 import { DayCell, Legend, kindLabelKey } from "../ui/cycle";
-import { FullScreenSpinner, Screen } from "../ui/layout";
+import { CycleLoading, Screen } from "../ui/layout";
 import { Button, Card, Chip, Sheet, Switch } from "../ui/primitives";
 import { useUI } from "../ui/ui-context";
 
@@ -45,7 +45,7 @@ export default function CalendarScreen() {
     void store.ensureRange(monthStart(shiftMonth(month, -1)), monthEnd(shiftMonth(month, 1)));
   }, [month]);
 
-  if (!cycle) return <FullScreenSpinner />;
+  if (!cycle) return <CycleLoading />;
   const isCurrent = month.y === monthOf(today).y && month.m === monthOf(today).m;
 
   async function toggle(ymd: Ymd) {

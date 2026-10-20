@@ -34,7 +34,11 @@
     "forecast": "forecast",
     "notContraception": "Forecasts are not a method of contraception.",
     "daysUnit": "days",
-    "back": "Back"
+    "back": "Back",
+    "lessDay": "One day less",
+    "moreDay": "One day more",
+    "retry": "Try again",
+    "loading": "Loading…"
   },
   "errors": {
     "futureDate": "Future days can't be marked yet.",
@@ -43,7 +47,9 @@
     "sessionExpired": "Your session has ended. Please sign in again.",
     "generic": "Something went wrong. Please try again.",
     "network": "No connection. Check the internet and try again.",
-    "offlineFeature": "Available when you are online."
+    "offlineFeature": "Available when you are online.",
+    "unreachableTitle": "Can't reach Sana",
+    "unreachableBody": "Check your internet connection. Your data will appear as soon as Sana is reachable again."
   },
   "sync": {
     "savedOffline": "Will be sent when you are online",

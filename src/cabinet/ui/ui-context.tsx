@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations, useLocale } from "next-intl";
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ApiError, type Command } from "../api/client";
 import type { NeedsConfirmationDetails } from "../api/types";
 import { fmtDate } from "../lib/dates";
@@ -69,6 +69,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
     [t],
   );
 
+  const execRef = useRef<UI["exec"] | null>(null);
   const exec: UI["exec"] = useCallback(
     async (cmd: Command, successText: string): Promise<boolean> => {
       let r;
@@ -80,7 +81,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
           if (!choice) return false;
           const text =
             choice === "spotting" ? t("startConfirm.spottingSaved") : choice === "continuation" ? t("startConfirm.continuationSaved") : successText;
-          return exec({ ...cmd, as: choice }, text);
+          return execRef.current ? execRef.current({ ...cmd, as: choice }, text) : false;
         }
         showToast(errorText(e), { tone: "error" });
         return false;
@@ -118,16 +119,21 @@ export function UIProvider({ children }: { children: ReactNode }) {
     [askStartOption, errorText, showToast, t],
   );
 
+  useEffect(() => {
+    execRef.current = exec;
+  }, [exec]);
+
   const value = useMemo(() => ({ toast: showToast, confirm, askStartOption, exec }), [showToast, confirm, askStartOption, exec]);
 
   return (
     <Ctx.Provider value={value}>
       {children}
-      {toast ? (
-        <div className="bottom-tabbar pointer-events-none fixed inset-x-0 z-[60] flex justify-center px-4" role="status" aria-live="polite">
+      {/* The live region stays mounted so screen readers announce every toast. */}
+      <div className="bottom-tabbar pointer-events-none fixed inset-x-0 z-[60] flex justify-center px-4" role="status" aria-live="polite" aria-atomic="true">
+        {toast ? (
           <div
             className={`fade-in pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-2xl px-4 py-3 text-sm shadow-lg ${
-              toast.tone === "error" ? "bg-c-danger text-white" : "bg-c-ink text-c-bg"
+              toast.tone === "error" ? "bg-c-danger text-c-danger-ink" : "bg-c-ink text-c-bg"
             }`}
           >
             <span className="min-w-0 flex-1">{toast.text}</span>
@@ -145,8 +151,8 @@ export function UIProvider({ children }: { children: ReactNode }) {
               </button>
             ) : null}
           </div>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
 
       <Sheet
         open={!!confirmState}
@@ -161,7 +167,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
         <div className="flex flex-col gap-2">
           <Button
             variant={confirmState?.danger ? "period" : "primary"}
-            className={confirmState?.danger ? "!bg-c-danger !text-white" : ""}
+            className={confirmState?.danger ? "!bg-c-danger !text-c-danger-ink" : ""}
             block
             onClick={() => {
               confirmState?.resolve(true);

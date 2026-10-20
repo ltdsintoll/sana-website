@@ -2,7 +2,7 @@
 
 import { ChevronDown, ChevronLeft, ChevronRight, Minus, Plus, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "@/i18n/navigation";
 import type { Flow, Symptom, Ymd } from "../api/types";
 import { LIBIDO, NOTES, SEX, SYMPTOM_SECTIONS, TEMP, WATER, WEIGHT, type SymptomSection } from "../lib/catalog";
@@ -30,14 +30,11 @@ function DayLog() {
   const router = useRouter();
   const view = useCycleView();
   const { today } = view;
-  const [ymd, setYmd] = useState<Ymd>(() => {
+  const [picked, setYmd] = useState<Ymd>(() => {
     const s = getSelectedDay();
     return isYmd(s) && s <= today ? s : today;
   });
-
-  useEffect(() => {
-    if (ymd > today) setYmd(today); // never log future days
-  }, [ymd, today]);
+  const ymd = picked > today ? today : picked; // never log future days
 
   useEffect(() => {
     setSelectedDay(ymd);
@@ -315,8 +312,13 @@ function SectionCard({
 function PainSlider({ value, onCommit }: { value: number | null; onCommit: (v: number | null) => void }) {
   const t = useTranslations("cab.day");
   const [v, setV] = useState<number | null>(value);
+  const [prev, setPrev] = useState(value);
+  if (value !== prev) {
+    // New value from the server (or another device): show it.
+    setPrev(value);
+    setV(value);
+  }
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => setV(value), [value]);
   const change = (n: number) => {
     setV(n);
     if (timer.current) clearTimeout(timer.current);
@@ -379,14 +381,17 @@ function TextField({
   const t = useTranslations("cab.day");
   const [v, setV] = useState(initial);
   const [focused, setFocused] = useState(false);
+  const [shown, setShown] = useState(initial);
   const saved = useRef(initial);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const errorId = useId();
+  // Take server updates (e.g. from Telegram) unless the user is typing.
+  if (!focused && initial !== shown) {
+    setShown(initial);
+    setV(initial);
+  }
   useEffect(() => {
-    // Take server updates (e.g. from Telegram) unless the user is typing.
-    if (!focused) {
-      setV(initial);
-      saved.current = initial;
-    }
+    if (!focused) saved.current = initial;
   }, [initial, focused]);
   const invalid = !!validate && !validate(v.trim());
   const commit = (value: string) => {
@@ -396,28 +401,51 @@ function TextField({
     saved.current = s;
     onSave(s);
   };
-  const common = {
-    value: v,
-    placeholder,
-    "aria-invalid": invalid || undefined,
-    onFocus: () => setFocused(true),
-    onBlur: () => {
-      setFocused(false);
-      commit(v);
-    },
-    onChange: (e: { target: { value: string } }) => {
-      setV(e.target.value);
-      if (timer.current) clearTimeout(timer.current);
-      const next = e.target.value;
-      timer.current = setTimeout(() => commit(next), 900);
-    },
-    className: `w-full rounded-2xl border bg-c-bg px-4 text-base text-c-ink outline-none placeholder:text-c-subtle focus:border-c-accent ${invalid ? "border-c-danger" : "border-c-line"}`,
+  const onBlur = () => {
+    setFocused(false);
+    commit(v);
   };
+  const onChange = (e: { target: { value: string } }) => {
+    setV(e.target.value);
+    if (timer.current) clearTimeout(timer.current);
+    const next = e.target.value;
+    timer.current = setTimeout(() => commit(next), 900);
+  };
+  const cls = `w-full rounded-2xl border bg-c-bg px-4 text-base text-c-ink outline-none placeholder:text-c-subtle focus:border-c-accent ${invalid ? "border-c-danger" : "border-c-line"}`;
   return (
     <label className="block">
       <span className="mb-1.5 block text-sm text-c-muted">{label}</span>
-      {multiline ? <textarea rows={3} maxLength={1000} {...common} className={`${common.className} min-h-24 py-3`} /> : <input inputMode={inputMode} {...common} className={`${common.className} min-h-12`} />}
-      {invalid ? <span className="mt-1 block text-xs text-c-danger">{t("invalidNumber")}</span> : null}
+      {multiline ? (
+        <textarea
+          rows={3}
+          maxLength={1000}
+          value={v}
+          placeholder={placeholder}
+          aria-invalid={invalid || undefined}
+          aria-describedby={invalid ? errorId : undefined}
+          onFocus={() => setFocused(true)}
+          onBlur={onBlur}
+          onChange={onChange}
+          className={`${cls} min-h-24 py-3`}
+        />
+      ) : (
+        <input
+          inputMode={inputMode}
+          value={v}
+          placeholder={placeholder}
+          aria-invalid={invalid || undefined}
+          aria-describedby={invalid ? errorId : undefined}
+          onFocus={() => setFocused(true)}
+          onBlur={onBlur}
+          onChange={onChange}
+          className={`${cls} min-h-12`}
+        />
+      )}
+      {invalid ? (
+        <span id={errorId} className="mt-1 block text-xs text-c-danger">
+          {t("invalidNumber")}
+        </span>
+      ) : null}
     </label>
   );
 }

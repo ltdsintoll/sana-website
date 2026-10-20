@@ -1,7 +1,7 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { ApiError, api } from "../api/client";
 import type { MergeDetails, Me } from "../api/types";
 import { fmtDate } from "../lib/dates";
@@ -47,6 +47,7 @@ export function EmailCodeForm({ mode, onDone }: { mode: "login" | "link"; onDone
   const [now, setNow] = useState(() => Date.now());
   const [merge, setMerge] = useState<MergeDetails | null>(null);
   const codeRef = useRef<HTMLInputElement>(null);
+  const hintId = useId();
 
   useEffect(() => {
     if (step !== "code") return;
@@ -162,11 +163,11 @@ export function EmailCodeForm({ mode, onDone }: { mode: "login" | "link"; onDone
               setCode(v);
               if (v.length === 6 && !busy) void verify(v);
             }}
-            aria-describedby="code-hint"
+            aria-describedby={hintId}
             className="min-h-14 w-full rounded-2xl border border-c-line bg-c-card px-4 text-center font-mono text-3xl tracking-[0.5em] text-c-ink outline-none focus:border-c-accent"
           />
         </label>
-        <p id="code-hint" className="text-xs text-c-subtle">
+        <p id={hintId} className="text-xs text-c-subtle">
           {t("login.codeHint")}
         </p>
         {error ? (

@@ -3,14 +3,14 @@
 import { useLocale, useTranslations } from "next-intl";
 import { fmtDate, fmtRange } from "../lib/dates";
 import { useCycleView } from "../state/view";
-import { FullScreenSpinner, Screen } from "../ui/layout";
+import { CycleLoading, Screen } from "../ui/layout";
 import { Card } from "../ui/primitives";
 
 export default function StatsScreen() {
   const t = useTranslations("cab");
   const locale = useLocale();
   const { cycle } = useCycleView();
-  if (!cycle) return <FullScreenSpinner />;
+  if (!cycle) return <CycleLoading />;
   const st = cycle.stats;
   const s = cycle.status;
   const maxLen = Math.max(35, ...st.history.map((h) => h.lengthDays));
