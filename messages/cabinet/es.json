@@ -10,7 +10,9 @@
     "login": "Iniciar sesión",
     "onboarding": "Bienvenida",
     "day": "Registro del día",
-    "logout": "Cerrando sesión"
+    "logout": "Cerrando sesión",
+    "partner": "Pareja",
+    "invite": "Invitación de pareja"
   },
   "tabs": {
     "label": "Menú principal",
@@ -109,7 +111,8 @@
     "errTooMany": "Demasiados intentos. Pide un código nuevo.",
     "errWait": "Espera {sec} s antes del siguiente código.",
     "errEmail": "Introduce un email válido.",
-    "legal": "Al continuar aceptas las <terms>Condiciones</terms> y la <privacy>Política de privacidad</privacy>."
+    "legal": "Al continuar aceptas las <terms>Condiciones</terms> y la <privacy>Política de privacidad</privacy>.",
+    "errLocked": "Demasiados códigos incorrectos. Inténtalo dentro de {min} min."
   },
   "link": {
     "conflict": "Este método de acceso ya pertenece a otra cuenta y no se puede vincular automáticamente. Escribe a soporte.",
@@ -375,8 +378,6 @@
     "language": "Idioma",
     "app": "App",
     "partner": "Pareja",
-    "partnerText": "Por ahora el acceso de la pareja se gestiona en el bot de Telegram.",
-    "openBot": "Abrir el bot",
     "privacy": "Privacidad y cuenta",
     "privacyPolicy": "Política de privacidad",
     "terms": "Condiciones de uso",
@@ -389,7 +390,7 @@
     "deleteConfirm": "Eliminar para siempre"
   },
   "notifications": {
-    "needTelegram": "Los recordatorios llegan desde el bot de Telegram. Vincula Telegram arriba para recibirlos.",
+    "needTelegram": "Para recibir recordatorios también en Telegram, vincula Telegram arriba.",
     "viaBot": "Los recordatorios llegan desde {bot} en Telegram.",
     "checkBag": "Prepara tu bolso",
     "checkBagHint": "2 días antes del periodo previsto",
@@ -401,7 +402,16 @@
     "pmsWarningHint": "Un aviso suave",
     "discreetMode": "Modo discreto",
     "discreetModeHint": "Sin nombre de la app ni la palabra «periodo» en la pantalla de bloqueo",
-    "pushSoon": "Las notificaciones push del navegador llegarán más adelante."
+    "channels": "Dónde llegan los recordatorios",
+    "channelWebPush": "Notificaciones del navegador",
+    "channelWebPushHint": "En todos los dispositivos de la lista",
+    "channelTelegram": "Telegram",
+    "telegramBlocked": "El bot {bot} está bloqueado en Telegram. Desbloquéalo para recibir recordatorios allí.",
+    "emailLate": "Correo si mi periodo se retrasa",
+    "emailLateHint": "Solo si no te llegó ninguna notificación, como mucho 2 por ciclo",
+    "emailLateNeedEmail": "Añade y confirma un correo arriba para activarlo",
+    "emailRequired": "Primero añade y confirma un correo.",
+    "what": "Qué recordar"
   },
   "symptoms": {
     "sections": {
@@ -468,5 +478,160 @@
       "alcohol": "Alcohol",
       "hormones": "Hormonas"
     }
+  },
+  "longPeriod": {
+    "title": "{count, plural, one {Tu periodo ya dura # día seguido} other {Tu periodo ya dura # días seguidos}}",
+    "body": "¿Marcar un día más? Puede pasar, pero a veces es un toque accidental.",
+    "confirm": "Marcar el día"
+  },
+  "push": {
+    "title": "Notificaciones en este dispositivo",
+    "explain": "Recibe los recordatorios de Sana como notificaciones del navegador, incluso con el sitio cerrado.",
+    "turnOn": "Activar recordatorios",
+    "turnOff": "Desactivar en este dispositivo",
+    "test": "Enviar una prueba",
+    "onHere": "Activadas en este dispositivo.",
+    "enabled": "Recordatorios activados en este dispositivo",
+    "disabled": "Recordatorios desactivados en este dispositivo",
+    "serverOff": "Las notificaciones del navegador aún no están disponibles.",
+    "iosInstall": "En iPhone y iPad las notificaciones solo funcionan tras añadir Sana a la pantalla de inicio (iOS 16.4 o posterior). Después abre Sana desde el icono y actívalas aquí.",
+    "unsupported": "Este navegador no admite notificaciones. Los recordatorios de Telegram siguen funcionando.",
+    "denied": "Las notificaciones están bloqueadas para este sitio. Permítelas en los ajustes del sitio del navegador y vuelve aquí.",
+    "testBody": "Notificaciones activadas. Así se verán los recordatorios de Sana.",
+    "testSent": "Notificación de prueba enviada",
+    "testNone": "Ningún dispositivo la recibió. Desactiva y vuelve a activar las notificaciones.",
+    "testLimit": "Hasta 5 pruebas por hora. Inténtalo más tarde.",
+    "devices": "Dispositivos con notificaciones",
+    "deviceUnknown": "Navegador",
+    "thisDevice": "este dispositivo",
+    "since": "Desde {date}",
+    "remove": "Quitar",
+    "removeNamed": "Quitar {name}",
+    "removeTitle": "¿Quitar este dispositivo?",
+    "removeBody": "Dejará de recibir notificaciones de Sana.",
+    "err": {
+      "denied": "No se permitieron las notificaciones. Puedes permitirlas en los ajustes del sitio del navegador.",
+      "unsupported": "Este navegador no admite notificaciones.",
+      "needs-install": "Primero añade Sana a la pantalla de inicio y ábrela desde allí.",
+      "disabled": "Las notificaciones del navegador aún no están disponibles.",
+      "failed": "No se pudieron activar las notificaciones. Inténtalo de nuevo."
+    }
+  },
+  "partners": {
+    "intro": "Comparte tu ciclo con alguien de confianza. Tú decides qué ve y puedes dejar de compartir cuando quieras.",
+    "invite": "Invitar a tu pareja",
+    "inviteText": "Recibirás un enlace personal. Quien lo abra primero e inicie sesión será tu pareja en Sana.",
+    "labelField": "Nombre (solo lo ves tú)",
+    "labelPlaceholder": "p. ej., Álex",
+    "createLink": "Crear el enlace",
+    "linkReady": "El enlace está listo",
+    "linkReadyText": "Envíalo a tu pareja por cualquier mensajería. Puedes cambiar lo que ve cuando quieras.",
+    "linkOnce": "El enlace funciona una sola vez: cuando tu pareja lo acepte, nadie más podrá usarlo.",
+    "share": "Compartir el enlace",
+    "copy": "Copiar",
+    "copied": "Enlace copiado",
+    "copyFailed": "No se pudo copiar. Selecciona el enlace y cópialo a mano.",
+    "shareText": "Mi invitación a Sana: verás la previsión de mi ciclo.",
+    "accepted": "Ve tu ciclo",
+    "pending": "Invitación aún no aceptada",
+    "pendingText": "Tu pareja aún no ha abierto el enlace. Puedes enviarlo de nuevo.",
+    "unnamed": "Pareja",
+    "whatTheySee": "Qué ve",
+    "perm": {
+      "showPeriod": "Fechas del periodo y previsión",
+      "showFertile": "Ventana fértil",
+      "showPms": "Días de SPM",
+      "viewPhase": "Fase del ciclo y consejos para tu pareja",
+      "showSexFreq": "Días de intimidad",
+      "showSleep": "Sueño",
+      "showHeartRate": "Frecuencia cardíaca",
+      "showMood": "Estado de ánimo",
+      "partnerNotifPms": "Avisarle antes del SPM"
+    },
+    "revokeTitle": "Dejar de compartir",
+    "revokeInviteTitle": "Cancelar la invitación",
+    "revokeBody": "{name} dejará de ver tu ciclo.",
+    "revokeInviteBody": "El enlace dejará de funcionar.",
+    "revoke": "Confirmar",
+    "revoked": "Listo",
+    "limit": "Hasta {max} invitaciones a la vez.",
+    "sharedWithMe": "Compartido contigo",
+    "cycleOf": "Ciclo de {name}"
+  },
+  "partnerView": {
+    "title": "Pareja",
+    "none": "Nadie comparte su ciclo contigo todavía. Pide a tu pareja un enlace de invitación.",
+    "her": "Pareja",
+    "cycleOf": "{name}",
+    "switch": "De quién",
+    "periodDay": "Periodo, día {day}",
+    "period": "Periodo",
+    "expectedToday": "Periodo previsto hoy",
+    "inDays": "{count, plural, one {Periodo en # día} other {Periodo en # días}}",
+    "late": "{count, plural, one {# día de retraso} other {# días de retraso}}",
+    "paused": "El seguimiento del ciclo está en pausa",
+    "hidden": "{name} no comparte las fechas del periodo",
+    "stale": "Ahora no hay previsión",
+    "noData": "Aún no hay datos",
+    "dayType": {
+      "period": "Hoy: periodo",
+      "fertile": "Hoy: ventana fértil",
+      "pms": "Hoy: días de SPM",
+      "safe": "Hoy: un día tranquilo del ciclo"
+    },
+    "irregular": "Su ciclo es irregular, la previsión es aproximada.",
+    "notContraception": "Las previsiones no son un método anticonceptivo.",
+    "adviceTitle": "Consejo de hoy",
+    "adviceDisabled": "Tu pareja desactivó los consejos.",
+    "adviceNone": "Hoy no hay consejo.",
+    "adviceOff": "Los consejos están desactivados. Actívalos abajo.",
+    "adviceSwitch": "Mostrar consejos",
+    "categories": "Temas de los consejos",
+    "category": {
+      "care": "Cuidado",
+      "activity": "Actividades",
+      "food": "Comida",
+      "mood": "Ánimo",
+      "intimacy": "Intimidad"
+    },
+    "phaseNotif": "Avisos de fase",
+    "phaseNotifHint": "Por ejemplo, antes del SPM",
+    "nudgeTitle": "Un gesto de cariño",
+    "nudgeText": "{name} recibirá un aviso amable de Sana.",
+    "nudge": {
+      "sweets": "Te llevo algo dulce",
+      "hug": "Te mando un abrazo",
+      "ask": "¿Cómo estás?"
+    },
+    "nudgeRule": "Hasta 3 al día.",
+    "nudgeRemaining": "{count, plural, =0 {No quedan más por hoy} one {# más hoy} other {# más hoy}}",
+    "nudgeSent": "Enviado a {name}. {count, plural, =0 {No quedan más por hoy.} one {# más hoy.} other {# más hoy.}}",
+    "nudgeLimit": "Ya van 3 hoy. Inténtalo mañana.",
+    "leave": "Dejar de ver este ciclo",
+    "leaveTitle": "¿Dejar de ver?",
+    "leaveBody": "Dejarás de ver el ciclo de {name}. Puede invitarte de nuevo."
+  },
+  "invite": {
+    "title": "Invitación de pareja",
+    "body": "Te invitaron a ver el ciclo de tu pareja en Sana.",
+    "point1": "Verás solo lo que ella decida compartir, por ejemplo la previsión del periodo.",
+    "point2": "Ella puede cambiarlo o dejar de compartir cuando quiera; tú también puedes salir.",
+    "point3": "Tus propios datos siguen siendo privados.",
+    "accept": "Aceptar la invitación",
+    "decline": "Ahora no",
+    "signInFirst": "Te invitaron a ver el ciclo de tu pareja. Inicia sesión o crea una cuenta para aceptar.",
+    "invalid": "El enlace de invitación está incompleto o no es válido.",
+    "toApp": "Abrir Sana",
+    "own": "Esta es tu propia invitación. Envíala a tu pareja.",
+    "revoked": "Esta invitación fue cancelada o no existe.",
+    "taken": "Otra persona ya aceptó esta invitación."
+  },
+  "consent": {
+    "title": "Necesitamos tu consentimiento para guardarlo",
+    "body": "Sana guarda los datos del ciclo solo con tu consentimiento para tratar datos de salud. No se pierde nada: lo que marcaste se guarda en cuanto aceptes.",
+    "accept": "Aceptar y guardar",
+    "later": "Ahora no",
+    "declined": "No se guardó: primero hace falta el consentimiento para tratar datos de salud.",
+    "accepted": "Gracias. Guardado"
   }
 }

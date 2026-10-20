@@ -4,8 +4,10 @@ import { useLocale, useTranslations } from "next-intl";
 import { useEffect, type ReactNode } from "react";
 import { IS_MOCK } from "../api/client";
 import { fmtDate } from "../lib/dates";
+import { resyncPush, swApiOrigin } from "../lib/push";
 import { useCabinet } from "../state/hooks";
 import { store } from "../state/store";
+import { ConsentGate } from "./consent";
 import { Button, Sheet } from "./primitives";
 import { UIProvider, useUI } from "./ui-context";
 
@@ -21,23 +23,40 @@ function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
   if (process.env.NODE_ENV !== "production" && !IS_MOCK) return;
   const scope = appBasePath();
+  // The worker calls the API itself only for notification actions ("Started today").
+  const api = swApiOrigin();
+  const url = `/app-sw.js?v=${encodeURIComponent(BUILD_ID)}${api ? `&api=${encodeURIComponent(api)}` : ""}`;
   navigator.serviceWorker
-    .register(`/app-sw.js?v=${encodeURIComponent(BUILD_ID)}`, { scope, updateViaCache: "none" })
+    .register(url, { scope, updateViaCache: "none" })
     .catch(() => {
       /* offline support is optional */
     });
 }
 
 export default function CabinetRoot({ children }: { children: ReactNode }) {
+  const { auth, me } = useCabinet();
+  const meId = auth === "authed" ? me?.id : undefined;
+
   useEffect(() => {
     void store.start();
     registerServiceWorker();
+    // A notification action changed data in the background: refetch.
+    const onSwMessage = (e: MessageEvent<{ type?: string }>) => {
+      if (e.data?.type === "sana-sync") void store.refresh({ force: true });
+    };
+    navigator.serviceWorker?.addEventListener("message", onSwMessage);
     if (IS_MOCK) {
       void import("../api/mock").then((m) => {
         (window as unknown as { __sanaMock: unknown }).__sanaMock = { simulateRemoteChange: m.simulateRemoteChange };
       });
     }
+    return () => navigator.serviceWorker?.removeEventListener("message", onSwMessage);
   }, []);
+
+  // Contract 8, step 3: re-send this device's push subscription on every start.
+  useEffect(() => {
+    if (meId) void resyncPush(meId);
+  }, [meId]);
 
   return (
     <div className="cab pt-safe min-h-dvh bg-c-bg text-c-ink">
@@ -45,6 +64,7 @@ export default function CabinetRoot({ children }: { children: ReactNode }) {
         {IS_MOCK ? <DemoBanner /> : null}
         {children}
         <ReplayNotices />
+        <ConsentGate />
       </UIProvider>
     </div>
   );

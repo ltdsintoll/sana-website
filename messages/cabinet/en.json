@@ -10,7 +10,9 @@
     "login": "Sign in",
     "onboarding": "Welcome",
     "day": "Day log",
-    "logout": "Signing out"
+    "logout": "Signing out",
+    "partner": "Partner",
+    "invite": "Partner invite"
   },
   "tabs": {
     "label": "Main menu",
@@ -109,7 +111,8 @@
     "errTooMany": "Too many attempts. Request a new code.",
     "errWait": "Please wait {sec} s before the next code.",
     "errEmail": "Enter a valid email.",
-    "legal": "By continuing you accept the <terms>Terms</terms> and the <privacy>Privacy Policy</privacy>."
+    "legal": "By continuing you accept the <terms>Terms</terms> and the <privacy>Privacy Policy</privacy>.",
+    "errLocked": "Too many wrong codes. Try again in {min} min."
   },
   "link": {
     "conflict": "This sign-in method already belongs to another account and can't be linked automatically. Contact support.",
@@ -375,8 +378,6 @@
     "language": "Language",
     "app": "App",
     "partner": "Partner",
-    "partnerText": "Partner access is managed in the Telegram bot for now.",
-    "openBot": "Open the bot",
     "privacy": "Privacy and account",
     "privacyPolicy": "Privacy Policy",
     "terms": "Terms of Use",
@@ -389,7 +390,7 @@
     "deleteConfirm": "Delete forever"
   },
   "notifications": {
-    "needTelegram": "Reminders come from the Telegram bot. Link Telegram above to get them.",
+    "needTelegram": "To get reminders in Telegram too, link Telegram above.",
     "viaBot": "Reminders come from {bot} in Telegram.",
     "checkBag": "Pack your bag",
     "checkBagHint": "2 days before the expected period",
@@ -401,7 +402,16 @@
     "pmsWarningHint": "A gentle heads-up",
     "discreetMode": "Discreet mode",
     "discreetModeHint": "No app name or the word “period” on the lock screen",
-    "pushSoon": "Browser push notifications are coming later."
+    "channels": "Where reminders go",
+    "channelWebPush": "Browser notifications",
+    "channelWebPushHint": "On every device listed above",
+    "channelTelegram": "Telegram",
+    "telegramBlocked": "The bot {bot} is blocked in Telegram. Unblock it to get reminders there.",
+    "emailLate": "Email if my period is late",
+    "emailLateHint": "Only when no notification reached you, at most 2 per cycle",
+    "emailLateNeedEmail": "Add and confirm an email above to use this",
+    "emailRequired": "Add and confirm an email first.",
+    "what": "What to remind about"
   },
   "symptoms": {
     "sections": {
@@ -468,5 +478,160 @@
       "alcohol": "Alcohol",
       "hormones": "Hormone-related"
     }
+  },
+  "longPeriod": {
+    "title": "{count, plural, one {Your period has lasted # day in a row} other {Your period has lasted # days in a row}}",
+    "body": "Mark one more day? It happens, but sometimes it's an accidental tap.",
+    "confirm": "Mark the day"
+  },
+  "push": {
+    "title": "Notifications on this device",
+    "explain": "Get Sana reminders as browser notifications, even when the site is closed.",
+    "turnOn": "Turn on reminders",
+    "turnOff": "Turn off on this device",
+    "test": "Send a test",
+    "onHere": "On for this device.",
+    "enabled": "Reminders are on for this device",
+    "disabled": "Reminders are off for this device",
+    "serverOff": "Browser notifications are not available yet.",
+    "iosInstall": "On iPhone and iPad, notifications work only after adding Sana to the Home Screen (iOS 16.4 or later). Then open Sana from the icon and turn them on here.",
+    "unsupported": "This browser does not support notifications. Telegram reminders still work.",
+    "denied": "Notifications are blocked for this site. Allow them in the browser's site settings, then come back here.",
+    "testBody": "Notifications are on. This is how Sana reminders will look.",
+    "testSent": "Test notification sent",
+    "testNone": "No device received it. Turn notifications off and on again.",
+    "testLimit": "Up to 5 tests per hour. Try again later.",
+    "devices": "Devices with notifications",
+    "deviceUnknown": "Browser",
+    "thisDevice": "this device",
+    "since": "Since {date}",
+    "remove": "Remove",
+    "removeNamed": "Remove {name}",
+    "removeTitle": "Remove this device?",
+    "removeBody": "It will stop receiving Sana notifications.",
+    "err": {
+      "denied": "Notifications were not allowed. You can allow them in the browser's site settings.",
+      "unsupported": "This browser does not support notifications.",
+      "needs-install": "First add Sana to the Home Screen and open it from there.",
+      "disabled": "Browser notifications are not available yet.",
+      "failed": "Could not turn on notifications. Please try again."
+    }
+  },
+  "partners": {
+    "intro": "Share your cycle with someone you trust. You decide what they see and can stop sharing at any time.",
+    "invite": "Invite a partner",
+    "inviteText": "You'll get a personal link. Whoever opens it first and signs in becomes your partner in Sana.",
+    "labelField": "Name (only you see it)",
+    "labelPlaceholder": "e.g. Alex",
+    "createLink": "Create the link",
+    "linkReady": "The link is ready",
+    "linkReadyText": "Send it to your partner in any messenger. You can change what they see at any time.",
+    "linkOnce": "The link works once: after your partner accepts it, nobody else can use it.",
+    "share": "Share the link",
+    "copy": "Copy",
+    "copied": "Link copied",
+    "copyFailed": "Could not copy. Select the link and copy it by hand.",
+    "shareText": "Here is my Sana invite: you'll see my cycle forecast.",
+    "accepted": "Sees your cycle",
+    "pending": "Invite not accepted yet",
+    "pendingText": "Your partner has not opened the link yet. You can send it again.",
+    "unnamed": "Partner",
+    "whatTheySee": "What they see",
+    "perm": {
+      "showPeriod": "Period dates and forecast",
+      "showFertile": "Fertile window",
+      "showPms": "PMS days",
+      "viewPhase": "Cycle phase and tips for them",
+      "showSexFreq": "Intimacy days",
+      "showSleep": "Sleep",
+      "showHeartRate": "Heart rate",
+      "showMood": "Mood",
+      "partnerNotifPms": "Remind them before PMS"
+    },
+    "revokeTitle": "Stop sharing",
+    "revokeInviteTitle": "Cancel the invite",
+    "revokeBody": "{name} will no longer see your cycle.",
+    "revokeInviteBody": "The link will stop working.",
+    "revoke": "Confirm",
+    "revoked": "Done",
+    "limit": "Up to {max} invites at a time.",
+    "sharedWithMe": "Shared with you",
+    "cycleOf": "{name}'s cycle"
+  },
+  "partnerView": {
+    "title": "Partner",
+    "none": "Nobody shares a cycle with you yet. Ask your partner for an invite link.",
+    "her": "Partner",
+    "cycleOf": "{name}",
+    "switch": "Whose cycle",
+    "periodDay": "Period, day {day}",
+    "period": "Period",
+    "expectedToday": "Period expected today",
+    "inDays": "{count, plural, one {Period in # day} other {Period in # days}}",
+    "late": "{count, plural, one {# day late} other {# days late}}",
+    "paused": "Cycle tracking is paused",
+    "hidden": "{name} does not share period dates",
+    "stale": "No forecast right now",
+    "noData": "No data yet",
+    "dayType": {
+      "period": "Today: period",
+      "fertile": "Today: fertile window",
+      "pms": "Today: PMS days",
+      "safe": "Today: a calm day of the cycle"
+    },
+    "irregular": "Her cycle is irregular, so the forecast is approximate.",
+    "notContraception": "Forecasts are not a method of contraception.",
+    "adviceTitle": "Tip for today",
+    "adviceDisabled": "Tips are switched off by your partner.",
+    "adviceNone": "No tip for today.",
+    "adviceOff": "Tips are off. Switch them on below.",
+    "adviceSwitch": "Show daily tips",
+    "categories": "Tip topics",
+    "category": {
+      "care": "Care",
+      "activity": "Activities",
+      "food": "Food",
+      "mood": "Mood",
+      "intimacy": "Intimacy"
+    },
+    "phaseNotif": "Phase notifications",
+    "phaseNotifHint": "For example a heads-up before PMS",
+    "nudgeTitle": "Send a sign of care",
+    "nudgeText": "{name} gets a gentle notification from Sana.",
+    "nudge": {
+      "sweets": "I'll bring something sweet",
+      "hug": "Sending a hug",
+      "ask": "How are you?"
+    },
+    "nudgeRule": "Up to 3 per day.",
+    "nudgeRemaining": "{count, plural, =0 {No more today} one {# more today} other {# more today}}",
+    "nudgeSent": "Sent to {name}. {count, plural, =0 {That's all for today.} one {# more today.} other {# more today.}}",
+    "nudgeLimit": "That's 3 for today. Try again tomorrow.",
+    "leave": "Stop viewing this cycle",
+    "leaveTitle": "Stop viewing?",
+    "leaveBody": "You will no longer see {name}'s cycle. She can invite you again."
+  },
+  "invite": {
+    "title": "Partner invite",
+    "body": "You were invited to see a partner's cycle in Sana.",
+    "point1": "You'll see only what she chooses to share, for example period forecasts.",
+    "point2": "She can change it or stop sharing at any time; you can leave too.",
+    "point3": "Your own data stays private.",
+    "accept": "Accept the invite",
+    "decline": "Not now",
+    "signInFirst": "You were invited to see a partner's cycle. Sign in or create an account to accept.",
+    "invalid": "This invite link is incomplete or invalid.",
+    "toApp": "Open Sana",
+    "own": "This is your own invite. Send it to your partner.",
+    "revoked": "This invite was cancelled or does not exist.",
+    "taken": "Someone else has already accepted this invite."
+  },
+  "consent": {
+    "title": "Your consent is needed to save this",
+    "body": "Sana stores cycle data only with your consent to processing health data. Nothing is lost: what you marked is saved as soon as you agree.",
+    "accept": "Agree and save",
+    "later": "Not now",
+    "declined": "Not saved: consent to processing health data is needed first.",
+    "accepted": "Thank you. Saved"
   }
 }

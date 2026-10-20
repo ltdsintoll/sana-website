@@ -5,14 +5,17 @@ import {
   NetworkError,
   api,
   commandRequest,
+  isConsentRequired,
   rawRequest,
   returnsCycle,
+  setConsentHandler,
   type Command,
 } from "../api/client";
-import type { CycleResponse, Me, NeedsConfirmationDetails, Symptom, Ymd } from "../api/types";
+import { hasConsent, type CycleResponse, type Me, type NeedsConfirmationDetails, type Symptom, type Ymd } from "../api/types";
 import { addDays, defaultRange, diffDays, localToday } from "../lib/dates";
 import { loadSecure, saveSecure, wipeSecure } from "../lib/secureStore";
-import { clearSelectedDay } from "./selectedDay";
+import { currentEndpoint, dropLocalPush } from "../lib/push";
+import { clearSelections } from "./selectedDay";
 
 export type AuthState = "unknown" | "authed" | "anon";
 
@@ -35,6 +38,11 @@ export type Snapshot = {
   symptoms: Record<Ymd, Symptom[]>;
   /** Onboarding finished or skipped on this device (see needsOnboarding). */
   onboarded: boolean;
+  /**
+   * v1.3: a write came back 403 consent_required. The consent screen is shown;
+   * the write (direct or queued) is sent again once it is accepted.
+   */
+  consentNeeded: boolean;
 };
 
 export type RunResult =
@@ -79,6 +87,7 @@ class CabinetStore {
     droppedOnReplay: 0,
     symptoms: {},
     onboarded: false,
+    consentNeeded: false,
   };
   private etag: string | null = null;
   private range: { from: Ymd; to: Ymd } | null = null;
@@ -99,6 +108,8 @@ class CabinetStore {
   private refreshToken: object | null = null;
   private flushToken: object | null = null;
   private channel: BroadcastChannel | null = null;
+  /** Writes waiting for the consent screen (resolved true when accepted). */
+  private consentWaiters: Array<(accepted: boolean) => void> = [];
 
   subscribe = (fn: () => void) => {
     this.listeners.add(fn);
@@ -135,6 +146,7 @@ class CabinetStore {
   async start() {
     if (this.started) return;
     this.started = true;
+    setConsentHandler(() => this.requireConsent());
     this.set({ online: typeof navigator === "undefined" ? true : navigator.onLine });
 
     const [cached, outbox] = await Promise.all([
@@ -179,14 +191,14 @@ class CabinetStore {
       this.channel = new BroadcastChannel(CHANNEL);
       this.channel.onmessage = (e: MessageEvent<{ type?: string }>) => {
         if (e.data?.type === "logout") void this.clearLocal().then(() => this.set({ auth: "anon" }));
-        else if (e.data?.type === "login") void this.checkSession();
+        else if (e.data?.type === "login" || e.data?.type === "consent") void this.checkSession();
       };
     } catch {
       /* old browsers: tabs sync on the next request instead */
     }
   }
 
-  private broadcast(type: "logout" | "login") {
+  private broadcast(type: "logout" | "login" | "consent") {
     try {
       this.channel?.postMessage({ type });
     } catch {
@@ -234,6 +246,8 @@ class CabinetStore {
     this.set({ me: user, auth: "authed", unreachable: false });
     this.persist();
     this.persistOutbox();
+    // Accepted elsewhere (another tab, the Mini App): release waiting writes.
+    if (hasConsent(user) && this.snap.consentNeeded) this.consentSettled(true);
   }
 
   /** After any successful login. */
@@ -272,6 +286,42 @@ class CabinetStore {
   setMe(user: Me) {
     this.set({ me: user });
     this.persist();
+  }
+
+  // ---------------------------------------------------------------- consent (v1.3)
+
+  /**
+   * Called by the API client on 403 consent_required: shows the consent screen
+   * and resolves once it was accepted (true) or the session ended (false).
+   */
+  requireConsent(): Promise<boolean> {
+    if (this.snap.auth !== "authed" || !this.snap.me) return Promise.resolve(false);
+    if (!this.snap.consentNeeded) this.set({ consentNeeded: true });
+    return new Promise((resolve) => this.consentWaiters.push(resolve));
+  }
+
+  /** The consent screen's button: records consent, then resends what waited for it. */
+  async acceptConsent(): Promise<void> {
+    const gen = this.gen;
+    const { consent } = await api.acceptConsent();
+    if (gen !== this.gen || !this.snap.me) return;
+    this.set({ me: { ...this.snap.me, gdprConsent: true, consent } });
+    this.persist();
+    this.broadcast("consent");
+    this.consentSettled(true);
+    void this.flush();
+  }
+
+  /** "Not now": the waiting writes fail; queued ones stay and ask again later. */
+  declineConsent() {
+    this.consentSettled(false);
+  }
+
+  private consentSettled(accepted: boolean) {
+    const waiters = this.consentWaiters;
+    this.consentWaiters = [];
+    if (this.snap.consentNeeded) this.set({ consentNeeded: false });
+    for (const w of waiters) w(accepted);
   }
 
   private handleAuthError(e: unknown): boolean {
@@ -388,10 +438,11 @@ class CabinetStore {
     }
   }
 
-  private async send(cmd: Command): Promise<unknown> {
+  private async send(cmd: Command, fromQueue = false): Promise<unknown> {
     const { path, opts } = commandRequest(cmd, this.range);
     const gen = this.gen;
-    const r = await rawRequest<unknown>(path, opts);
+    // Queued commands do not wait for the consent screen: they stay queued.
+    const r = await rawRequest<unknown>(path, fromQueue ? { ...opts, noConsentGate: true } : opts);
     if (gen !== this.gen) return r.data; // signed out meanwhile: keep nothing
     if (returnsCycle(cmd) && r.data) {
       // Mutation bodies carry the new state (and its ETag).
@@ -421,7 +472,7 @@ class CabinetStore {
 
   async flush(): Promise<void> {
     if (this.flushing && this.flushingGen === this.gen) return this.flushing;
-    if (!this.snap.pending.length || this.snap.replayConflict || this.snap.auth !== "authed") return;
+    if (!this.snap.pending.length || this.snap.replayConflict || this.snap.consentNeeded || this.snap.auth !== "authed") return;
     const gen = this.gen;
     this.flushingGen = gen;
     const token = {};
@@ -432,7 +483,7 @@ class CabinetStore {
         while (this.snap.pending.length && gen === this.gen) {
           const item = this.snap.pending[0];
           try {
-            await this.send(item.cmd);
+            await this.send(item.cmd, true);
           } catch (e) {
             if (gen !== this.gen) return;
             if (e instanceof NetworkError) {
@@ -440,6 +491,11 @@ class CabinetStore {
               return;
             }
             if (this.handleAuthError(e)) return;
+            if (isConsentRequired(e)) {
+              // v1.3: keep the queue; acceptConsent() flushes it again.
+              void this.requireConsent();
+              return;
+            }
             if (e instanceof ApiError && e.code === "needs_confirmation") {
               this.set({ replayConflict: { item, details: e.details as NeedsConfirmationDetails } });
               return;
@@ -642,6 +698,7 @@ class CabinetStore {
     this.symChain.clear();
     this.symInFlight.clear();
     this.openSymptomDays.clear();
+    this.consentSettled(false);
     this.set({
       me: null,
       cycle: null,
@@ -652,18 +709,21 @@ class CabinetStore {
       onboarded: false,
       lastSyncedAt: null,
     });
-    clearSelectedDay();
+    clearSelections();
     await wipeSecure();
     await clearShellCaches();
   }
 
   async logout(all = false) {
+    // v1.2: the server forgets this browser's push subscription with the session.
+    const pushEndpoint = await currentEndpoint();
     try {
       if (all) await api.logoutAll();
-      else await api.logout();
+      else await api.logout(pushEndpoint);
     } catch {
       /* we clear locally anyway */
     }
+    await dropLocalPush();
     await this.clearLocal();
     this.set({ auth: "anon" });
     this.broadcast("logout");
@@ -671,6 +731,7 @@ class CabinetStore {
 
   /** Account deleted on the server. */
   async forget() {
+    await dropLocalPush();
     await this.clearLocal();
     this.set({ auth: "anon" });
     this.broadcast("logout");

@@ -18,16 +18,37 @@ export type Me = {
   } | null;
   languageCode: string | null;
   timezone: string | null;
+  /** Equals `consent.accepted` (kept for older clients). */
   gdprConsent: boolean;
+  /** v1.3: state of the GDPR consent (section 12). */
+  consent?: Consent;
   mode: Mode;
   hasProfile: boolean;
   createdAt: string;
 };
 
+/** v1.3 (section 12): the server rejects health-data writes until `accepted`. */
+export type Consent = {
+  accepted: boolean;
+  acceptedAt: string | null;
+  /** `null` for consents given before versions were recorded. */
+  version: string | null;
+  currentVersion: string | null;
+};
+
+/** Has this account accepted the GDPR consent? (v1.3 `consent`, else `gdprConsent`). */
+export function hasConsent(me: Pick<Me, "gdprConsent" | "consent"> | null | undefined): boolean {
+  if (!me) return false;
+  return me.consent ? me.consent.accepted === true : me.gdprConsent === true;
+}
+
 export type AuthConfig = {
   telegramBotUsername: string;
   telegramWidgetEnabled: boolean;
   emailLoginEnabled: boolean;
+  /** v1.2: Web Push configured on the server (VAPID). */
+  webPushEnabled?: boolean;
+  vapidPublicKey?: string | null;
 };
 
 export type Episode = {
@@ -177,7 +198,111 @@ export type NotificationSettings = {
   customTextPms?: string | null;
   /** v1.1: true when the user never saved notification settings. */
   isDefault?: boolean;
+  /** v1.2 channel switches. */
+  channelTelegram?: boolean;
+  channelWebPush?: boolean;
+  /** v1.2: opt-in email when the period is late (needs a verified email). */
+  emailLateReminders?: boolean;
+  /** v1.2: what can deliver for this account right now. */
+  available?: NotificationAvailability;
 };
+
+export type NotificationAvailability = {
+  telegram: boolean;
+  telegramBlocked: boolean;
+  webPushEnabled: boolean;
+  webPushDevices: number;
+  email: boolean;
+};
+
+// ------------------------------------------------------------------ v1.2 Web Push (contract 8)
+
+export type PushSubscriptionJSONBody = {
+  endpoint: string;
+  expirationTime: number | null;
+  keys: { p256dh: string; auth: string };
+};
+
+export type PushDevice = {
+  id: string;
+  deviceLabel: string | null;
+  userAgent: string | null;
+  endpointHost: string | null;
+  createdAt: string;
+  lastSuccessAt: string | null;
+  expirationTime: string | null;
+  current: boolean;
+};
+
+// ------------------------------------------------------------------ v1.2 Partners (contract 10)
+
+export const OWNER_PERMISSIONS = [
+  "showPeriod",
+  "showFertile",
+  "showPms",
+  "viewPhase",
+  "showSexFreq",
+  "showSleep",
+  "showHeartRate",
+  "showMood",
+  "partnerNotifPms",
+] as const;
+export type OwnerPermission = (typeof OWNER_PERMISSIONS)[number];
+
+export const ADVICE_CATEGORIES = ["care", "activity", "food", "mood", "intimacy"] as const;
+export type AdviceCategory = (typeof ADVICE_CATEGORIES)[number];
+
+export type PartnerPermissions = Record<OwnerPermission, boolean> & {
+  partnerAdviceEnabled: boolean;
+  partnerPhaseNotifications: boolean;
+  partnerAdviceCategories: AdviceCategory[];
+};
+
+export type OwnerPartnerLink = {
+  partnerUuid: string;
+  label: string | null;
+  shareUrl: string;
+  webShareUrl: string;
+  accepted: boolean;
+  createdAt: string;
+  acceptedAt: string | null;
+  partner: { firstName: string | null; photoUrl: string | null; username: string | null } | null;
+  permissions: PartnerPermissions;
+};
+
+export type PartnerOfLink = {
+  partnerUuid: string;
+  ownerName: string | null;
+  ownerPhotoUrl: string | null;
+  acceptedAt: string | null;
+};
+
+export type PartnerDayType = "period" | "period_predicted" | "fertile" | "pms" | null;
+
+export type PartnerView = {
+  today: Ymd;
+  dayType: "period" | "fertile" | "pms" | "safe" | "nothing";
+  daysUntilPeriod: number | null;
+  cycleState: "expected" | "period" | "late" | "stale" | "no_data" | "paused" | "hidden";
+  lateDays: number | null;
+  ongoingPeriod: { dayIndex: number; suggestedTotal: number } | null;
+  ownerName: string | null;
+  ownerPhotoUrl: string | null;
+  ownerIrregular: boolean;
+  permissions: PartnerPermissions;
+  sexDotsThisMonth: boolean[];
+  sexDotsLastMonth: boolean[];
+  monthDays: Array<{ date: Ymd; type: PartnerDayType }>;
+  prevMonthDays: Array<{ date: Ymd; type: PartnerDayType }>;
+};
+
+export type PartnerAdvice =
+  | { hidden: true }
+  | { hidden: false; phase: string; text: string; category: AdviceCategory; fallback: boolean };
+
+export type PartnerPrefs = Pick<PartnerPermissions, "partnerAdviceEnabled" | "partnerPhaseNotifications" | "partnerAdviceCategories">;
+
+export type NudgeKind = "sweets" | "hug" | "ask";
 
 export type TelegramStart = {
   pollToken: string;

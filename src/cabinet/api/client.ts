@@ -1,9 +1,19 @@
 import type {
   AuthConfig,
+  Consent,
   CycleResponse,
   Flow,
   Me,
   NotificationSettings,
+  NudgeKind,
+  OwnerPartnerLink,
+  OwnerPermission,
+  PartnerAdvice,
+  PartnerOfLink,
+  PartnerPrefs,
+  PartnerView,
+  PushDevice,
+  PushSubscriptionJSONBody,
   Symptom,
   TelegramPoll,
   TelegramStart,
@@ -45,6 +55,11 @@ export type RequestOptions = {
   body?: unknown;
   ifNoneMatch?: string | null;
   signal?: AbortSignal;
+  /**
+   * v1.3: do not wait for the consent screen on 403 consent_required (the
+   * offline queue handles that itself and keeps the command).
+   */
+  noConsentGate?: boolean;
 };
 
 export type RawResponse<T> = { status: number; data: T | null; etag: string | null };
@@ -59,7 +74,35 @@ export function browserTimeZone(): string | undefined {
 
 let mockModule: Promise<typeof import("./mock")> | null = null;
 
+/**
+ * v1.3 (contract 12): health-data writes answer 403 consent_required until the
+ * account accepted the consent. The store registers a handler that shows the
+ * consent screen and resolves `true` once it was accepted (then the write is
+ * sent again) or `false` (signed out: the original error is thrown).
+ */
+type ConsentHandler = () => Promise<boolean>;
+let consentHandler: ConsentHandler | null = null;
+export function setConsentHandler(fn: ConsentHandler | null) {
+  consentHandler = fn;
+}
+
+export function isConsentRequired(e: unknown): e is ApiError {
+  return e instanceof ApiError && e.status === 403 && e.code === "consent_required";
+}
+
 export async function rawRequest<T>(path: string, opts: RequestOptions = {}): Promise<RawResponse<T>> {
+  try {
+    return await sendRequest<T>(path, opts);
+  } catch (e) {
+    // Reads and DELETEs never need consent; a write is retried once after it.
+    const method = opts.method ?? "GET";
+    if (!isConsentRequired(e) || opts.noConsentGate || method === "GET" || method === "DELETE" || !consentHandler) throw e;
+    if (!(await consentHandler())) throw e;
+    return sendRequest<T>(path, { ...opts, noConsentGate: true });
+  }
+}
+
+async function sendRequest<T>(path: string, opts: RequestOptions): Promise<RawResponse<T>> {
   const method = opts.method ?? "GET";
   const headers: Record<string, string> = { Accept: "application/json" };
   if (opts.body !== undefined) headers["Content-Type"] = "application/json";
@@ -156,13 +199,17 @@ export const api = {
       method: "POST",
       body: { ...data, merge },
     }),
-  logout: () => req<null>("/api/auth/logout", { method: "POST" }),
+  /** v1.2: pass this browser's push endpoint so the server forgets the device. */
+  logout: (pushEndpoint?: string | null) =>
+    req<null>("/api/auth/logout", { method: "POST", body: pushEndpoint ? { pushEndpoint } : undefined }),
   logoutAll: () => req<null>("/api/auth/logout-all", { method: "POST" }),
 
   // --- profile
   patchMe: (body: { timezone?: string; languageCode?: string }) =>
     req<{ user: Me }>("/api/v2/me", { method: "PATCH", body }),
-  gdprAccept: () => req<{ ok: true }>("/api/gdpr/accept", { method: "POST" }),
+  /** v1.3: the server sets the version; clients only send `accepted: true`. */
+  consent: () => req<{ consent: Consent }>("/api/v2/consent"),
+  acceptConsent: () => req<{ consent: Consent }>("/api/v2/consent", { method: "POST", body: { accepted: true } }),
   deleteAccount: () => req<null>("/api/gdpr/delete-account", { method: "POST" }),
   notifications: () => req<NotificationSettings | null>("/api/notifications"),
   updateNotifications: (body: Partial<NotificationSettings>) =>
@@ -175,7 +222,46 @@ export const api = {
 
   // --- symptoms (legacy shape)
   symptoms: (date: Ymd) => req<{ symptoms: Symptom[] }>(`/api/symptoms?date=${enc(date)}`),
+
+  // --- v1.2 Web Push (contract 8)
+  pushConfig: () => req<{ webPushEnabled: boolean; vapidPublicKey: string | null }>("/api/v2/push/config"),
+  pushSubscribe: (subscription: PushSubscriptionJSONBody, deviceLabel?: string) =>
+    req<{ subscription: PushDevice }>("/api/v2/push/subscriptions", {
+      method: "POST",
+      body: deviceLabel ? { subscription, deviceLabel } : { subscription },
+    }),
+  pushDevices: () => req<{ webPushEnabled: boolean; subscriptions: PushDevice[] }>("/api/v2/push/subscriptions"),
+  pushDelete: (id: string) => req<null>(`/api/v2/push/subscriptions/${enc(id)}`, { method: "DELETE" }),
+  pushUnsubscribe: (endpoint: string) => req<null>("/api/v2/push/unsubscribe", { method: "POST", body: { endpoint } }),
+  pushTest: (subscriptionId?: string) =>
+    req<{ sent: number; removed: number }>("/api/v2/push/test", { method: "POST", body: subscriptionId ? { subscriptionId } : {} }),
+
+  // --- v1.2 partners, owner side (contract 10)
+  partners: () => req<{ links: OwnerPartnerLink[] }>("/api/v2/partners"),
+  createPartner: (label?: string) =>
+    req<{ link: OwnerPartnerLink }>("/api/v2/partners", { method: "POST", body: label ? { label } : {} }),
+  updatePartner: (uuid: string, body: { label?: string | null; permissions?: Partial<Record<OwnerPermission, boolean>> }) =>
+    req<{ link: OwnerPartnerLink }>(`/api/v2/partners/${enc(uuid)}`, { method: "PATCH", body }),
+  revokePartner: (uuid: string) => req<null>(`/api/v2/partners/${enc(uuid)}`, { method: "DELETE" }),
+
+  // --- v1.2 partners, partner side
+  partnerOf: () => req<{ links: PartnerOfLink[] }>("/api/v2/partner-of"),
+  acceptInvite: (uuid: string) =>
+    req<{ ok: true; view: PartnerView }>(`/api/v2/partner-of/${enc(uuid)}/accept`, { method: "POST" }),
+  partnerView: (uuid: string) => req<PartnerView>(`/api/v2/partner-of/${enc(uuid)}`),
+  leavePartner: (uuid: string) => req<null>(`/api/v2/partner-of/${enc(uuid)}`, { method: "DELETE" }),
+  partnerAdvice: (uuid: string, locale: string) =>
+    req<PartnerAdvice>(`/api/v2/partner-of/${enc(uuid)}/advice?locale=${enc(locale)}`),
+  partnerPrefs: (uuid: string, body: Partial<PartnerPrefs>) =>
+    req<PartnerPrefs>(`/api/v2/partner-of/${enc(uuid)}/prefs`, { method: "PATCH", body }),
+  nudge: (uuid: string, kind: NudgeKind) =>
+    req<{ ok: true; remaining: number }>(`/api/v2/partner-of/${enc(uuid)}/nudge`, { method: "POST", body: { kind } }),
 };
+
+/** Partner invite ids are UUIDs; anything else never reaches the API. */
+export function isUuid(v: unknown): v is string {
+  return typeof v === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+}
 
 export function rangeQuery(range: { from: Ymd; to: Ymd } | null): string {
   return range ? `?from=${enc(range.from)}&to=${enc(range.to)}` : "";

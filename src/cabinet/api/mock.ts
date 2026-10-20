@@ -12,9 +12,14 @@
 //   late@...         -> period late by 4 days
 //   pregnant@...     -> pregnancy mode
 //   merge...@...     -> linking Telegram answers 409 merge_required first
+//   partner...@...   -> already sees the cycle of a demo partner ("Anna")
+//   locked...@...    -> email verify answers 429 too_many_attempts (lockout)
+//   noconsent...@... -> has data but never accepted the GDPR consent (v1.3):
+//                       writes answer 403 consent_required until accepted
 
 import type {
   CalendarDay,
+  Consent,
   CycleResponse,
   CycleStatus,
   DayKind,
@@ -22,6 +27,12 @@ import type {
   Episode,
   Me,
   NotificationSettings,
+  OwnerPartnerLink,
+  PartnerAdvice,
+  PartnerDayType,
+  PartnerPermissions,
+  PartnerView,
+  PushDevice,
   Pregnancy,
   Symptom,
   Ymd,
@@ -38,12 +49,25 @@ type MockUser = {
   symptoms: Symptom[];
   pregnancies: Pregnancy[];
   notifications: NotificationSettings;
+  push?: Array<PushDevice & { endpoint: string }>;
+};
+
+type MockLink = {
+  uuid: string;
+  ownerId: string;
+  label: string | null;
+  createdAt: string;
+  partnerUserId: string | null;
+  acceptedAt: string | null;
+  permissions: PartnerPermissions;
+  nudges: number[];
 };
 
 type Db = {
   users: Record<string, MockUser>;
   session: string | null;
   polls: Record<string, { purpose: "login" | "link"; created: number; polls: number }>;
+  links?: Record<string, MockLink>;
 };
 
 const LS_KEY = "sana-mock-db";
@@ -93,7 +117,8 @@ function seed(kind: string, email: string | null, telegram: Me["telegram"]): Moc
     telegram,
     languageCode: null,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    gdprConsent: kind !== "new",
+    gdprConsent: kind !== "new" && kind !== "noconsent",
+    consent: consentState(kind !== "new" && kind !== "noconsent"),
     mode: kind === "pregnant" ? "PREGNANCY" : "BASIC",
     hasProfile: kind !== "new",
     createdAt: addDays(t, -200) + "T10:00:00.000Z",
@@ -107,7 +132,16 @@ function seed(kind: string, email: string | null, telegram: Me["telegram"]): Moc
     logs: {},
     symptoms: [],
     pregnancies: [],
-    notifications: { checkBag: true, remindMark: true, congratulate: true, pmsWarning: true, discreetMode: false },
+    notifications: {
+      checkBag: true,
+      remindMark: true,
+      congratulate: true,
+      pmsWarning: true,
+      discreetMode: false,
+      channelTelegram: true,
+      channelWebPush: true,
+      emailLateReminders: false,
+    },
   };
   if (kind === "new") {
     u.settings.cycleLength = null;
@@ -149,9 +183,25 @@ function seed(kind: string, email: string | null, telegram: Me["telegram"]): Moc
   return u;
 }
 
+const CONSENT_VERSION = "2026-10-20";
+
+function consentState(accepted: boolean): Consent {
+  return { accepted, acceptedAt: accepted ? nowIso() : null, version: accepted ? CONSENT_VERSION : null, currentVersion: CONSENT_VERSION };
+}
+
+/** v1.3 (contract 12): POST/PUT/PATCH that store health data need consent. */
+function needsConsent(method: string, p: string): boolean {
+  if (method !== "POST" && method !== "PUT" && method !== "PATCH") return false;
+  return /^\/api\/v2\/(periods|days|onboarding|pregnancy|settings|partners)(\/|$)/.test(p) || /^\/api\/symptoms(\/|$)/.test(p);
+}
+
+function hasConsented(u: MockUser): boolean {
+  return u.me.consent ? u.me.consent.accepted : u.me.gdprConsent;
+}
+
 function kindFromEmail(email: string): string {
   const local = email.split("@")[0].toLowerCase();
-  for (const k of ["new", "period", "late", "pregnant"]) if (local.startsWith(k)) return k;
+  for (const k of ["new", "period", "late", "pregnant", "partner", "noconsent"]) if (local.startsWith(k)) return k;
   return "regular";
 }
 
@@ -408,19 +458,23 @@ function route(db: Db, method: string, path: string, b: Record<string, unknown>,
   if (u && headers["X-Timezone"] && u.me.timezone !== headers["X-Timezone"]) u.me.timezone = headers["X-Timezone"];
 
   // --- auth without session
-  if (M === "GET /api/auth/config") return ok({ telegramBotUsername: "HerCycleBot", telegramWidgetEnabled: true, emailLoginEnabled: true });
+  if (M === "GET /api/auth/config")
+    return ok({ telegramBotUsername: "HerCycleBot", telegramWidgetEnabled: true, emailLoginEnabled: true, webPushEnabled: true, vapidPublicKey: DEMO_VAPID });
   if (M === "POST /api/auth/email/request" || M === "POST /api/auth/link/email/request") {
     if (M.includes("link") && !u) return err(401, "unauthorized");
     return ok({ ok: true, expiresInSec: 600, resendAfterSec: 30 });
   }
   if (M === "POST /api/auth/email/verify") {
     const email = String(b.email ?? "").toLowerCase();
+    if (email.startsWith("locked")) return err(429, "too_many_attempts", "Too many wrong codes", { retryAfterSec: 1800 });
     if (b.code !== "123456") return err(400, "invalid_code", "Wrong code");
     let user = Object.values(db.users).find((x) => x.me.email === email);
     const created = !user;
     if (!user) {
-      user = seed(kindFromEmail(email), email, null);
+      const kind = kindFromEmail(email);
+      user = seed(kind === "partner" ? "new" : kind, email, null);
       db.users[user.me.id] = user;
+      if (kind === "partner") seedPartnerOf(db, user);
     }
     db.session = user.me.id;
     return ok({ user: user.me, created });
@@ -470,10 +524,12 @@ function route(db: Db, method: string, path: string, b: Record<string, unknown>,
 
   if (M === "GET /api/auth/session") return ok({ user: u.me });
   if (M === "POST /api/auth/logout") {
+    if (typeof b.pushEndpoint === "string") u.push = (u.push ?? []).filter((d) => d.endpoint !== b.pushEndpoint);
     db.session = null;
     return { status: 204 };
   }
   if (M === "POST /api/auth/logout-all") {
+    u.push = [];
     db.session = null;
     return { status: 204 };
   }
@@ -497,20 +553,33 @@ function route(db: Db, method: string, path: string, b: Record<string, unknown>,
     if (typeof b.timezone === "string") u.me.timezone = b.timezone;
     return ok({ user: u.me });
   }
-  if (M === "POST /api/gdpr/accept") {
+  if (M === "POST /api/gdpr/accept" || M === "POST /api/v2/consent") {
+    if (M === "POST /api/v2/consent" && b.accepted !== true) return err(400, "validation_error", "accepted must be true");
     u.me.gdprConsent = true;
-    return ok({ ok: true });
+    u.me.consent = consentState(true);
+    return ok(M === "POST /api/v2/consent" ? { consent: u.me.consent } : { ok: true, consent: u.me.consent });
   }
+  if (M === "GET /api/v2/consent") return ok({ consent: u.me.consent ?? consentState(u.me.gdprConsent) });
+  if (needsConsent(method, p) && !hasConsented(u)) return err(403, "consent_required", "Accept the privacy policy first");
   if (M === "POST /api/gdpr/delete-account") {
     delete db.users[u.me.id];
     db.session = null;
     return { status: 204 };
   }
-  if (M === "GET /api/notifications") return ok(u.notifications);
+  if (M === "GET /api/notifications") return ok(notifications(u));
   if (M === "PUT /api/notifications") {
-    u.notifications = { ...u.notifications, ...(b as Partial<NotificationSettings>) };
-    return ok(u.notifications);
+    if (b.emailLateReminders === true && !(u.me.email && u.me.emailVerified)) return err(409, "email_required", "Add and verify an email first");
+    const { available: _a, isDefault: _d, ...patch } = b as Partial<NotificationSettings>;
+    void _a;
+    void _d;
+    u.notifications = { ...u.notifications, ...patch };
+    return ok(notifications(u));
   }
+
+  const pushRes = routePush(u, M, p, b);
+  if (pushRes) return pushRes;
+  const partnerRes = routePartners(db, u, M, p, b, q);
+  if (partnerRes) return partnerRes;
   if (M === "GET /api/v2/sync/version") return ok({ version: u.version, updatedAt: u.updatedAt });
 
   const from = q.get("from");
@@ -687,6 +756,286 @@ function route(db: Db, method: string, path: string, b: Record<string, unknown>,
     return ok({ ok: true });
   }
   return err(404, "not_found", `${M} is not mocked`);
+}
+
+// ------------------------------------------------------------------ v1.2: notifications, push, partners
+
+/** A syntactically valid P-256 public key (65 bytes, base64url). Demo only. */
+const DEMO_VAPID = "BOl3wGiz8nB0tDZ6S0bbmnB1tQ2yE6E5mJ0Vf5bH6mH0f6x0f8m1kE2b8z1p4nq3l2bM9K4hY5i9D6pJ8n7cQ1A";
+
+function notifications(u: MockUser): NotificationSettings {
+  const n = u.notifications;
+  return {
+    channelTelegram: true,
+    channelWebPush: true,
+    emailLateReminders: false,
+    ...n,
+    available: {
+      telegram: !!u.me.telegram,
+      telegramBlocked: false,
+      webPushEnabled: true,
+      webPushDevices: (u.push ?? []).length,
+      email: !!u.me.email && u.me.emailVerified,
+    },
+  };
+}
+
+function routePush(u: MockUser, M: string, p: string, b: Record<string, unknown>): Res | null {
+  const list = () => (u.push ??= []);
+  const pub = (d: PushDevice & { endpoint: string }, current = false): PushDevice => {
+    const { endpoint: _e, ...rest } = d;
+    void _e;
+    return { ...rest, current };
+  };
+  if (M === "GET /api/v2/push/config") return ok({ webPushEnabled: true, vapidPublicKey: DEMO_VAPID });
+  if (M === "GET /api/v2/push/subscriptions") return ok({ webPushEnabled: true, subscriptions: [...list()].reverse().map((d) => pub(d)) });
+  if (M === "POST /api/v2/push/subscriptions") {
+    const sub = b.subscription as { endpoint?: string } | undefined;
+    const endpoint = String(sub?.endpoint ?? "");
+    if (!endpoint.startsWith("https://fcm.googleapis.com/")) return err(400, "invalid_push_endpoint");
+    const existing = list().find((d) => d.endpoint === endpoint);
+    if (existing) {
+      if (typeof b.deviceLabel === "string") existing.deviceLabel = b.deviceLabel;
+      return ok({ subscription: pub(existing, true) });
+    }
+    const d = {
+      id: crypto.randomUUID(),
+      endpoint,
+      deviceLabel: typeof b.deviceLabel === "string" ? b.deviceLabel : null,
+      userAgent: navigator.userAgent.slice(0, 120),
+      endpointHost: "fcm.googleapis.com",
+      createdAt: nowIso(),
+      lastSuccessAt: null,
+      expirationTime: null,
+      current: false,
+    };
+    list().push(d);
+    if (list().length > 10) list().shift();
+    return { status: 201, body: { subscription: pub(d, true) } };
+  }
+  const mDev = p.match(/^\/api\/v2\/push\/subscriptions\/([^/]+)$/);
+  if (mDev && M.startsWith("DELETE ")) {
+    const before = list().length;
+    u.push = list().filter((d) => d.id !== decodeURIComponent(mDev[1]));
+    return u.push.length === before ? err(404, "not_found") : { status: 204 };
+  }
+  if (M === "POST /api/v2/push/unsubscribe") {
+    u.push = list().filter((d) => d.endpoint !== b.endpoint);
+    return { status: 204 };
+  }
+  if (M === "POST /api/v2/push/test") {
+    const n = b.subscriptionId ? list().filter((d) => d.id === b.subscriptionId).length : list().length;
+    for (const d of list()) if (!b.subscriptionId || d.id === b.subscriptionId) d.lastSuccessAt = nowIso();
+    return ok({ sent: n, removed: 0 });
+  }
+  return null;
+}
+
+const DEFAULT_PERMS: PartnerPermissions = {
+  showPeriod: true,
+  showFertile: false,
+  showPms: true,
+  viewPhase: true,
+  showSexFreq: false,
+  showSleep: false,
+  showHeartRate: false,
+  showMood: false,
+  partnerNotifPms: true,
+  partnerAdviceEnabled: true,
+  partnerPhaseNotifications: true,
+  partnerAdviceCategories: ["care", "activity", "food", "mood", "intimacy"],
+};
+
+function linkJson(db: Db, l: MockLink): OwnerPartnerLink {
+  const p = l.partnerUserId ? db.users[l.partnerUserId] : undefined;
+  const base = typeof location !== "undefined" ? location.origin : "https://sanacycle.com";
+  return {
+    partnerUuid: l.uuid,
+    label: l.label,
+    shareUrl: `https://t.me/HerCycleBot/calendar?startapp=partner_id_${l.uuid}`,
+    webShareUrl: `${base}/app/partner/accept?invite=${l.uuid}`,
+    accepted: !!l.partnerUserId,
+    createdAt: l.createdAt,
+    acceptedAt: l.acceptedAt,
+    partner: p ? { firstName: p.me.telegram?.firstName ?? p.me.email?.split("@")[0] ?? null, photoUrl: null, username: p.me.telegram?.username ?? null } : null,
+    permissions: l.permissions,
+  };
+}
+
+function ownerName(o: MockUser): string {
+  return o.me.telegram?.firstName ?? (o.me.email ? o.me.email.split("@")[0].replace(/^\w/, (c) => c.toUpperCase()) : "Sana");
+}
+
+function partnerView(db: Db, l: MockLink): PartnerView {
+  const o = db.users[l.ownerId];
+  const c = build(o);
+  const pr = l.permissions;
+  const s = c.status;
+  const kindOf = (d: Ymd): PartnerDayType => {
+    const k = c.calendar.days.find((x) => x.ymd === d)?.kind;
+    if ((k === "period" || k === "period_predicted") && pr.showPeriod) return k;
+    if ((k === "fertile" || k === "ovulation") && pr.showFertile) return "fertile";
+    if (k === "pms" && pr.showPms) return "pms";
+    return null;
+  };
+  const month = (m: string) => {
+    const out: PartnerView["monthDays"] = [];
+    for (let d = `${m}-01`; d.startsWith(m); d = addDays(d, 1)) out.push({ date: d, type: kindOf(d) });
+    return out;
+  };
+  const t = c.today;
+  const thisMonth = t.slice(0, 7);
+  const prevMonth = addDays(`${thisMonth}-01`, -1).slice(0, 7);
+  const tk = kindOf(t);
+  const paused = s.state === "pregnancy";
+  const cycleState: PartnerView["cycleState"] = paused
+    ? "paused"
+    : !pr.showPeriod
+      ? "hidden"
+      : s.state === "pregnancy"
+        ? "paused"
+        : (s.state as PartnerView["cycleState"]);
+  return {
+    today: t,
+    dayType: paused ? "nothing" : tk === "period" ? "period" : tk === "fertile" ? "fertile" : tk === "pms" ? "pms" : pr.showPeriod ? "safe" : "nothing",
+    daysUntilPeriod: pr.showPeriod && s.state === "expected" ? s.daysUntilExpected : null,
+    cycleState,
+    lateDays: pr.showPeriod && s.state === "late" ? s.lateDays : null,
+    ongoingPeriod: pr.showPeriod && s.state === "period" ? { dayIndex: s.periodDay ?? 1, suggestedTotal: c.stats.periodLength } : null,
+    ownerName: ownerName(o),
+    ownerPhotoUrl: null,
+    ownerIrregular: c.stats.irregular,
+    permissions: pr,
+    sexDotsThisMonth: [],
+    sexDotsLastMonth: [],
+    monthDays: paused ? [] : month(thisMonth),
+    prevMonthDays: paused ? [] : month(prevMonth),
+  };
+}
+
+const ADVICE: Record<string, Record<string, string>> = {
+  en: {
+    menstrual: "Offer a warm drink and take one chore off her list today.",
+    follicular: "Energy is usually higher now: a good week for a plan together.",
+    fertile: "A good day for a walk together or something new.",
+    pms: "Be extra patient today, a small surprise goes a long way.",
+    other: "Ask how she feels today and really listen.",
+  },
+  ru: {
+    menstrual: "Предложите тёплый чай и возьмите на себя одно дело по дому.",
+    follicular: "Сейчас обычно больше энергии: хорошая неделя для совместных планов.",
+    fertile: "Хороший день для прогулки вдвоём или чего-то нового.",
+    pms: "Сегодня особенно важно терпение. Маленький сюрприз очень кстати.",
+    other: "Спросите, как она себя чувствует, и просто выслушайте.",
+  },
+  uk: {
+    menstrual: "Запропонуйте теплий чай і візьміть на себе одну хатню справу.",
+    follicular: "Зараз зазвичай більше енергії: гарний тиждень для спільних планів.",
+    fertile: "Гарний день для прогулянки удвох чи чогось нового.",
+    pms: "Сьогодні особливо важливе терпіння. Маленький сюрприз дуже доречний.",
+    other: "Запитайте, як вона почувається, і просто вислухайте.",
+  },
+  es: {
+    menstrual: "Ofrécele una bebida caliente y encárgate hoy de una tarea de casa.",
+    follicular: "Ahora suele haber más energía: buena semana para hacer planes juntos.",
+    fertile: "Buen día para un paseo juntos o algo nuevo.",
+    pms: "Hoy ten paciencia extra; una pequeña sorpresa ayuda mucho.",
+    other: "Pregúntale cómo se siente hoy y escucha de verdad.",
+  },
+};
+
+function seedPartnerOf(db: Db, partner: MockUser) {
+  const owner = seed("regular", "anna.demo@example.com", { id: "555000111", username: "anna_demo", firstName: "Anna", lastName: null, photoUrl: null });
+  db.users[owner.me.id] = owner;
+  const uuid = crypto.randomUUID();
+  (db.links ??= {})[uuid] = {
+    uuid,
+    ownerId: owner.me.id,
+    label: null,
+    createdAt: nowIso(),
+    partnerUserId: partner.me.id,
+    acceptedAt: nowIso(),
+    permissions: { ...DEFAULT_PERMS, showFertile: true },
+    nudges: [],
+  };
+}
+
+function routePartners(db: Db, u: MockUser, M: string, p: string, b: Record<string, unknown>, q: URLSearchParams): Res | null {
+  const links = (db.links ??= {});
+  const mine = () => Object.values(links).filter((l) => l.ownerId === u.me.id).sort((a, c) => (a.createdAt < c.createdAt ? -1 : 1));
+  if (M === "GET /api/v2/partners") return ok({ links: mine().map((l) => linkJson(db, l)) });
+  if (M === "POST /api/v2/partners") {
+    if (mine().length >= 5) return err(409, "limit_reached", "Max 5 active invites");
+    const label = typeof b.label === "string" ? b.label.trim().slice(0, 60) || null : null;
+    const l: MockLink = { uuid: crypto.randomUUID(), ownerId: u.me.id, label, createdAt: nowIso(), partnerUserId: null, acceptedAt: null, permissions: { ...DEFAULT_PERMS }, nudges: [] };
+    links[l.uuid] = l;
+    return { status: 201, body: { link: linkJson(db, l) } };
+  }
+  const mOwn = p.match(/^\/api\/v2\/partners\/([^/]+)$/);
+  if (mOwn) {
+    const l = links[decodeURIComponent(mOwn[1])];
+    if (!l || l.ownerId !== u.me.id) return err(404, "not_found");
+    if (M.startsWith("PATCH ")) {
+      if (b.label !== undefined) l.label = typeof b.label === "string" ? b.label.trim().slice(0, 60) || null : null;
+      if (b.permissions && typeof b.permissions === "object") {
+        for (const [k, v] of Object.entries(b.permissions as Record<string, unknown>)) {
+          if (!(k in DEFAULT_PERMS) || typeof v !== "boolean" || k.startsWith("partnerAdvice") || k === "partnerPhaseNotifications") return err(400, "validation_error");
+          (l.permissions as Record<string, unknown>)[k] = v;
+        }
+      }
+      return ok({ link: linkJson(db, l) });
+    }
+    if (M.startsWith("DELETE ")) {
+      delete links[l.uuid];
+      return { status: 204 };
+    }
+  }
+  if (M === "GET /api/v2/partner-of") {
+    const of = Object.values(links).filter((l) => l.partnerUserId === u.me.id);
+    return ok({ links: of.map((l) => ({ partnerUuid: l.uuid, ownerName: db.users[l.ownerId] ? ownerName(db.users[l.ownerId]) : null, ownerPhotoUrl: null, acceptedAt: l.acceptedAt })) });
+  }
+  const mOf = p.match(/^\/api\/v2\/partner-of\/([^/]+)(?:\/(accept|advice|prefs|nudge))?$/);
+  if (!mOf) return null;
+  const l = links[decodeURIComponent(mOf[1])];
+  const sub = mOf[2];
+  if (sub === "accept" && M.startsWith("POST ")) {
+    if (!l || !db.users[l.ownerId]) return err(404, "not_found", "Invalid or revoked invite");
+    if (l.ownerId === u.me.id) return err(400, "own_link", "Cannot accept your own link");
+    if (l.partnerUserId && l.partnerUserId !== u.me.id) return err(409, "link_taken", "Invite already used");
+    l.partnerUserId = u.me.id;
+    l.acceptedAt ??= nowIso();
+    return ok({ ok: true, view: partnerView(db, l) });
+  }
+  if (!l || l.partnerUserId !== u.me.id || !db.users[l.ownerId]) return err(403, "forbidden");
+  if (!sub && M.startsWith("GET ")) return ok(partnerView(db, l));
+  if (!sub && M.startsWith("DELETE ")) {
+    delete links[l.uuid];
+    return { status: 204 };
+  }
+  if (sub === "advice") {
+    if (!l.permissions.viewPhase) return err(403, "phase_tips_disabled");
+    if (!l.permissions.partnerAdviceEnabled) return ok({ hidden: true } satisfies PartnerAdvice);
+    const v = partnerView(db, l);
+    if (v.cycleState === "paused") return ok({ hidden: true } satisfies PartnerAdvice);
+    const phase = v.dayType === "period" ? "menstrual" : v.dayType === "fertile" ? "fertile" : v.dayType === "pms" ? "pms" : "follicular";
+    const lang = ADVICE[q.get("locale") ?? "en"] ?? ADVICE.en;
+    const advice: PartnerAdvice = { hidden: false, phase, text: lang[phase] ?? lang.other, category: "care", fallback: false };
+    return ok(advice);
+  }
+  if (sub === "prefs" && M.startsWith("PATCH ")) {
+    for (const k of ["partnerAdviceEnabled", "partnerPhaseNotifications"] as const) if (typeof b[k] === "boolean") l.permissions[k] = b[k] as boolean;
+    if (Array.isArray(b.partnerAdviceCategories)) l.permissions.partnerAdviceCategories = b.partnerAdviceCategories as PartnerPermissions["partnerAdviceCategories"];
+    const { partnerAdviceEnabled, partnerPhaseNotifications, partnerAdviceCategories } = l.permissions;
+    return ok({ partnerAdviceEnabled, partnerPhaseNotifications, partnerAdviceCategories });
+  }
+  if (sub === "nudge" && M.startsWith("POST ")) {
+    const now = Date.now();
+    l.nudges = l.nudges.filter((x) => now - x < 86_400_000);
+    if (l.nudges.length >= 3) return err(429, "rate_limited", "Nudge limit reached", { retryAfterSec: Math.ceil((l.nudges[0] + 86_400_000 - now) / 1000) });
+    l.nudges.push(now);
+    return ok({ ok: true, remaining: 3 - l.nudges.length });
+  }
+  return null;
 }
 
 /** Lets demo/tests simulate a change made in Telegram (bumps dataVersion). */

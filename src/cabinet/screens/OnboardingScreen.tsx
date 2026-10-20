@@ -2,13 +2,13 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
-import { Link, useRouter } from "@/i18n/navigation";
-import { api } from "../api/client";
-import type { Ymd } from "../api/types";
+import { useRouter } from "@/i18n/navigation";
+import { hasConsent, type Ymd } from "../api/types";
 import { addDays, fmtDate, localToday } from "../lib/dates";
 import { useCabinet } from "../state/hooks";
 import { store } from "../state/store";
 import { RequireAuth } from "../ui/layout";
+import { ConsentCheck, ConsentPoints } from "../ui/consent";
 import { Button, Card, Stepper } from "../ui/primitives";
 import { useUI } from "../ui/ui-context";
 
@@ -33,7 +33,8 @@ function Onboarding() {
   const today = snap.cycle?.today ?? localToday(me.timezone);
   const hasData = !!snap.cycle && snap.cycle.status.state !== "no_data";
 
-  const [step, setStep] = useState<Step>(me.gdprConsent ? "last" : "consent");
+  const consented = hasConsent(me);
+  const [step, setStep] = useState<Step>(consented ? "last" : "consent");
   const [agree, setAgree] = useState(false);
   const [busy, setBusy] = useState(false);
   const [last, setLast] = useState<Ymd | null>(null);
@@ -42,14 +43,14 @@ function Onboarding() {
   const [cycleLength, setCycleLength] = useState(28);
 
   useEffect(() => {
-    if (me.gdprConsent && hasData && step === "last") router.replace("/app/today");
-  }, [me.gdprConsent, hasData, step, router]);
+    if (consented && hasData && step === "last") router.replace("/app/today");
+  }, [consented, hasData, step, router]);
 
   async function acceptConsent() {
     setBusy(true);
     try {
-      await api.gdprAccept();
-      store.setMe({ ...me, gdprConsent: true });
+      // v1.3: POST /api/v2/consent; also releases writes waiting for it.
+      await store.acceptConsent();
       if (hasData) {
         store.markOnboarded();
         router.replace("/app/today");
@@ -74,13 +75,20 @@ function Onboarding() {
     }
   }
 
-  const steps: Step[] = me.gdprConsent && step !== "consent" ? ["last", "period", "cycle"] : ["consent", "last", "period", "cycle"];
+  const steps: Step[] = consented && step !== "consent" ? ["last", "period", "cycle"] : ["consent", "last", "period", "cycle"];
   const idx = steps.indexOf(step);
 
   return (
     <main className="px-safe pb-safe mx-auto flex min-h-[calc(100dvh-env(safe-area-inset-top))] w-full max-w-md flex-col pb-6">
       <header className="flex min-h-16 items-center justify-between">
-        <div className="flex gap-1.5" aria-label={t("progress", { step: idx + 1, total: steps.length })}>
+        <div
+          className="flex gap-1.5"
+          role="progressbar"
+          aria-valuemin={1}
+          aria-valuemax={steps.length}
+          aria-valuenow={idx + 1}
+          aria-label={t("progress", { step: idx + 1, total: steps.length })}
+        >
           {steps.map((s, i) => (
             <span key={s} className={`h-1.5 w-8 rounded-full ${i <= idx ? "bg-c-accent" : "bg-c-line"}`} />
           ))}
@@ -96,23 +104,12 @@ function Onboarding() {
         <section className="flex flex-1 flex-col">
           <h1 className="mt-6 text-3xl font-light tracking-tight">{t("consentTitle")}</h1>
           <p className="mt-3 text-base text-c-muted">{t("consentBody")}</p>
-          <ul className="mt-4 space-y-2 text-base text-c-ink">
-            <li>• {t("consent1")}</li>
-            <li>• {t("consent2")}</li>
-            <li>• {t("consent3")}</li>
-          </ul>
-          <label className="mt-6 flex min-h-12 cursor-pointer items-start gap-3 rounded-2xl bg-c-card p-4">
-            <input type="checkbox" className="mt-0.5 h-6 w-6 shrink-0 accent-[var(--cab-accent)]" checked={agree} onChange={(e) => setAgree(e.target.checked)} />
-            <span className="text-sm text-c-ink">
-              {t.rich("consentCheck", {
-                privacy: (c) => (
-                  <Link href="/privacy" className="underline underline-offset-2">
-                    {c}
-                  </Link>
-                ),
-              })}
-            </span>
-          </label>
+          <div className="mt-4">
+            <ConsentPoints />
+          </div>
+          <div className="mt-6">
+            <ConsentCheck checked={agree} onChange={setAgree} />
+          </div>
           <div className="pb-safe sticky bottom-0 mt-auto bg-c-bg pb-2 pt-4">
             <Button size="lg" block disabled={!agree} loading={busy} onClick={() => void acceptConsent()}>
               {t("continue")}

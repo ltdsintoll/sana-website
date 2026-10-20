@@ -50,6 +50,7 @@ export default function CalendarScreen() {
 
   async function toggle(ymd: Ymd) {
     const next = !view.isPeriod(ymd);
+    if (next && !(await ui.confirmLongPeriod(view.isPeriod, ymd))) return;
     const date = fmtDate(ymd, locale);
     await ui.exec({ type: "dayPeriod", ymd, isPeriod: next }, next ? t("calendar.marked", { date }) : t("calendar.unmarked", { date }));
   }

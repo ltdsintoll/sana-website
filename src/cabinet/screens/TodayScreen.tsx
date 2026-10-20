@@ -11,6 +11,7 @@ import { setSelectedDay, useCycleView } from "../state/view";
 import { DayCell, InstallHint, PastDatePicker, kindLabelKey } from "../ui/cycle";
 import { CycleLoading, Screen } from "../ui/layout";
 import { Button, Card } from "../ui/primitives";
+import { SharedWithMe } from "../ui/partners";
 import { useUI } from "../ui/ui-context";
 
 export default function TodayScreen() {
@@ -91,6 +92,7 @@ export default function TodayScreen() {
       </Card>
 
       <Upcoming status={s} />
+      <SharedWithMe />
       <InstallHint compact />
     </Screen>
   );

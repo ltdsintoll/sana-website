@@ -2,7 +2,7 @@
 
 import { Send } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, useRouter } from "@/i18n/navigation";
 import { ApiError, IS_MOCK, api } from "../api/client";
 import type { AuthConfig, Me, TelegramWidgetUser } from "../api/types";
@@ -15,7 +15,11 @@ import { TelegramWidget, useTelegramDeepLink } from "../ui/telegram";
 
 const DEFAULT_CONFIG: AuthConfig = { telegramBotUsername: "HerCycleBot", telegramWidgetEnabled: true, emailLoginEnabled: true };
 
-export default function LoginScreen() {
+/**
+ * `embedded`: shown inside another screen (the partner invite page), which
+ * takes over after sign-in instead of the usual redirect to Today.
+ */
+export default function LoginScreen({ embedded = false, intro }: { embedded?: boolean; intro?: ReactNode } = {}) {
   const t = useTranslations("cab");
   const router = useRouter();
   const snap = useCabinet();
@@ -29,10 +33,11 @@ export default function LoginScreen() {
 
   // Already signed in (or just signed in): leave the login screen.
   useEffect(() => {
+    if (embedded) return; // the parent screen takes over once signed in
     if (snap.auth === "authed" && (snap.cycle || snap.unreachable)) {
       router.replace(needsOnboardingOf(snap) ? "/app/onboarding" : "/app/today");
     }
-  }, [snap, router]);
+  }, [snap, router, embedded]);
 
   async function done(user: Me) {
     await store.signedIn(user);
@@ -57,6 +62,7 @@ export default function LoginScreen() {
   return (
     <main className="px-safe pb-safe mx-auto flex min-h-[calc(100dvh-env(safe-area-inset-top))] w-full max-w-md flex-col pb-6">
       <div className="flex flex-1 flex-col justify-center py-8">
+        {intro}
         <div className="mb-8 text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[1.4rem] bg-gradient-to-br from-[#8B7FD6] to-[#6B5FB8] text-3xl font-semibold text-white">
             S

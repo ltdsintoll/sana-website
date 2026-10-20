@@ -154,7 +154,14 @@ function DayForm({ ymd }: { ymd: Ymd }) {
     <div className="flex flex-col gap-3">
       <Card>
         <h2 className="mb-1 text-base font-medium">{t("day.periodSection")}</h2>
-        <Switch checked={isPeriod} label={t("day.periodThisDay")} onChange={(v) => void ui.exec({ type: "dayPeriod", ymd, isPeriod: v }, v ? t("day.periodOn") : t("day.periodOff"))} />
+        <Switch
+          checked={isPeriod}
+          label={t("day.periodThisDay")}
+          onChange={async (v) => {
+            if (v && !(await ui.confirmLongPeriod(view.isPeriod, ymd))) return;
+            void ui.exec({ type: "dayPeriod", ymd, isPeriod: v }, v ? t("day.periodOn") : t("day.periodOff"));
+          }}
+        />
         <p className="mb-2 mt-3 text-sm text-c-muted">{t("day.flow")}</p>
         <div className="flex flex-wrap gap-2">
           {FLOWS.map((f) => (

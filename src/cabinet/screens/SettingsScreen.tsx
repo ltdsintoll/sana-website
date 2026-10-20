@@ -6,12 +6,14 @@ import { useEffect, useState } from "react";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { type Locale } from "@/i18n/config";
 import { ApiError, IS_MOCK, api } from "../api/client";
-import type { AuthConfig, Me, MergeDetails, NotificationSettings, TelegramWidgetUser, Ymd } from "../api/types";
+import type { AuthConfig, Me, MergeDetails, TelegramWidgetUser, Ymd } from "../api/types";
 import { fmtDate } from "../lib/dates";
 import { useCabinet } from "../state/hooks";
 import { store } from "../state/store";
 import { useCycleView } from "../state/view";
 import { InstallHint, PastDatePicker } from "../ui/cycle";
+import { NotificationsCard } from "../ui/notifications";
+import { PartnersCard, SharedWithMe } from "../ui/partners";
 import { EmailCodeForm, MergeSheet } from "../ui/email";
 import { CycleLoading, Screen } from "../ui/layout";
 import { Button, Card, SectionTitle, Sheet, Spinner, Stepper, Switch } from "../ui/primitives";
@@ -46,18 +48,14 @@ export default function SettingsScreen() {
       <SectionTitle>{t("settings.pregnancy")}</SectionTitle>
       <PregnancyCard />
       <SectionTitle>{t("settings.notifications")}</SectionTitle>
-      <NotificationsCard hasTelegram={!!me.telegram} bot={bot} />
+      <NotificationsCard me={me} config={config} bot={bot} />
       <SectionTitle>{t("settings.language")}</SectionTitle>
       <LanguageCard />
       <SectionTitle>{t("settings.app")}</SectionTitle>
       <AppCard />
       <SectionTitle>{t("settings.partner")}</SectionTitle>
-      <Card>
-        <p className="text-base text-c-muted">{t("settings.partnerText")}</p>
-        <a href={`https://t.me/${bot}`} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex min-h-11 items-center gap-2 text-c-accent">
-          <Send className="h-4 w-4" aria-hidden /> {t("settings.openBot")}
-        </a>
-      </Card>
+      <PartnersCard />
+      <SharedWithMe />
       <SectionTitle>{t("settings.privacy")}</SectionTitle>
       <SessionCard />
       <DangerZone />
@@ -350,53 +348,6 @@ function PregnancyCard() {
         </div>
       </Sheet>
     </div>
-  );
-}
-
-// ------------------------------------------------------------------ notifications
-
-const NOTIF_KEYS = ["checkBag", "remindMark", "congratulate", "pmsWarning", "discreetMode"] as const;
-
-function NotificationsCard({ hasTelegram, bot }: { hasTelegram: boolean; bot: string }) {
-  const t = useTranslations("cab");
-  const ui = useUI();
-  const [n, setN] = useState<NotificationSettings | null>(null);
-  const [failed, setFailed] = useState(false);
-  useEffect(() => {
-    api.notifications().then(
-      (r) => setN(r ?? { checkBag: true, remindMark: true, congratulate: true, pmsWarning: true, discreetMode: false }),
-      () => setFailed(true),
-    );
-  }, []);
-
-  async function set(key: (typeof NOTIF_KEYS)[number], v: boolean) {
-    const prev = n;
-    setN((cur) => (cur ? { ...cur, [key]: v } : cur));
-    try {
-      const r = await api.updateNotifications({ [key]: v });
-      setN(r);
-    } catch {
-      setN(prev);
-      ui.toast(t("errors.generic"), { tone: "error" });
-    }
-  }
-
-  return (
-    <Card>
-      {!hasTelegram ? (
-        <p className="mb-2 rounded-2xl bg-c-accent-soft p-3 text-sm text-c-accent">{t("notifications.needTelegram")}</p>
-      ) : (
-        <p className="mb-1 text-sm text-c-muted">{t("notifications.viaBot", { bot: `@${bot}` })}</p>
-      )}
-      {failed ? <p className="text-sm text-c-muted">{t("errors.offlineFeature")}</p> : null}
-      {n
-        ? NOTIF_KEYS.map((k) => (
-            <Switch key={k} checked={!!n[k]} label={t(`notifications.${k}`)} hint={t(`notifications.${k}Hint`)} onChange={(v) => void set(k, v)} />
-          ))
-        : !failed ? <Spinner className="text-c-accent" /> : null}
-      {/* TODO(push): Web Push needs VAPID + subscription endpoints in the API (not in contract v1). */}
-      <p className="mt-2 text-xs text-c-subtle">{t("notifications.pushSoon")}</p>
-    </Card>
   );
 }
 

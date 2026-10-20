@@ -15,7 +15,8 @@ function emailError(t: (k: string, v?: Record<string, string | number>) => strin
       case "code_expired":
         return t("login.errExpired");
       case "too_many_attempts":
-        return t("login.errTooMany");
+        // v1.2 lockout after many wrong codes: say how long to wait.
+        return e.retryAfterSec ? t("login.errLocked", { min: Math.max(1, Math.ceil(e.retryAfterSec / 60)) }) : t("login.errTooMany");
       case "rate_limited":
         return e.retryAfterSec ? t("login.errWait", { sec: e.retryAfterSec }) : t("errors.rateLimited");
       case "validation_error":
@@ -46,6 +47,8 @@ export function EmailCodeForm({ mode, onDone }: { mode: "login" | "link"; onDone
   const [resendAt, setResendAt] = useState(0);
   const [now, setNow] = useState(() => Date.now());
   const [merge, setMerge] = useState<MergeDetails | null>(null);
+  /** v1.2: verify is locked (429 too_many_attempts) until this time. */
+  const [lockedUntil, setLockedUntil] = useState(0);
   const codeRef = useRef<HTMLInputElement>(null);
   const hintId = useId();
 
@@ -95,6 +98,7 @@ export function EmailCodeForm({ mode, onDone }: { mode: "login" | "link"; onDone
       } else {
         setError(emailError(t, e));
         if (e instanceof ApiError && (e.code === "code_expired" || e.code === "too_many_attempts")) setCode("");
+        if (e instanceof ApiError && e.code === "too_many_attempts" && e.retryAfterSec) setLockedUntil(Date.now() + e.retryAfterSec * 1000);
       }
     } finally {
       setBusy(false);
@@ -102,6 +106,7 @@ export function EmailCodeForm({ mode, onDone }: { mode: "login" | "link"; onDone
   }
 
   const wait = Math.max(0, Math.ceil((resendAt - now) / 1000));
+  const locked = lockedUntil > now;
 
   if (step === "email") {
     return (
@@ -145,7 +150,7 @@ export function EmailCodeForm({ mode, onDone }: { mode: "login" | "link"; onDone
         className="flex flex-col gap-3"
         onSubmit={(e) => {
           e.preventDefault();
-          if (code.length === 6) void verify(code);
+          if (code.length === 6 && !locked) void verify(code);
         }}
       >
         <p className="text-base text-c-muted">{t("login.codeSent", { email })}</p>
@@ -161,7 +166,7 @@ export function EmailCodeForm({ mode, onDone }: { mode: "login" | "link"; onDone
             onChange={(e) => {
               const v = e.target.value.replace(/\D/g, "").slice(0, 6);
               setCode(v);
-              if (v.length === 6 && !busy) void verify(v);
+              if (v.length === 6 && !busy && !locked) void verify(v);
             }}
             aria-describedby={hintId}
             className="min-h-14 w-full rounded-2xl border border-c-line bg-c-card px-4 text-center font-mono text-3xl tracking-[0.5em] text-c-ink outline-none focus:border-c-accent"
@@ -175,7 +180,7 @@ export function EmailCodeForm({ mode, onDone }: { mode: "login" | "link"; onDone
             {error}
           </p>
         ) : null}
-        <Button type="submit" block loading={busy} disabled={code.length !== 6}>
+        <Button type="submit" block loading={busy} disabled={code.length !== 6 || locked}>
           {mode === "login" ? t("login.signIn") : t("link.confirm")}
         </Button>
         <div className="flex items-center justify-between gap-2">

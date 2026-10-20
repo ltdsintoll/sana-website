@@ -30,6 +30,17 @@ export function cellStyle(day: CalendarDay | undefined, isPeriod: boolean): { bo
   }
 }
 
+/** Long period guard (contract 11): the threshold above which we ask once more. */
+export const LONG_PERIOD_DAYS = 10;
+
+/** Length of the period run that marking `ymd` would produce (adjacent logged days + this one). */
+export function periodRunIfMarked(isPeriod: (ymd: Ymd) => boolean, ymd: Ymd): number {
+  let n = 1;
+  for (let d = addDays(ymd, -1), i = 0; i < 60 && isPeriod(d); d = addDays(d, -1), i++) n++;
+  for (let d = addDays(ymd, 1), i = 0; i < 60 && isPeriod(d); d = addDays(d, 1), i++) n++;
+  return n;
+}
+
 export function kindLabelKey(day: CalendarDay | undefined, isPeriod: boolean): string | null {
   if (isPeriod) return "kind.period";
   if (!day || day.kind === "none") return null;

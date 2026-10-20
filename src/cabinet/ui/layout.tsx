@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useEffect, type ReactNode } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { useCabinet } from "../state/hooks";
+import { hasConsent } from "../api/types";
 import type { Snapshot } from "../state/store";
 import { store } from "../state/store";
 import { Button, Spinner } from "./primitives";
@@ -105,7 +106,7 @@ export function RequireAuth({ children, allowOnboarding = false }: { children: R
  */
 export function needsOnboardingOf(s: Snapshot): boolean {
   if (!s.me) return false;
-  if (!s.me.gdprConsent) return true;
+  if (!hasConsent(s.me)) return true;
   if (s.onboarded || s.me.hasProfile) return false;
   return s.cycle?.status.state === "no_data";
 }

@@ -7,6 +7,7 @@ import type { NeedsConfirmationDetails } from "../api/types";
 import { fmtDate } from "../lib/dates";
 import { store } from "../state/store";
 import { undoCommands } from "../state/undo";
+import { LONG_PERIOD_DAYS, periodRunIfMarked } from "./cycle";
 import { Button, Sheet } from "./primitives";
 
 type Toast = { id: number; text: string; tone: "info" | "error"; action?: { label: string; run: () => void } };
@@ -17,6 +18,8 @@ type UI = {
   toast: (text: string, opts?: { tone?: Toast["tone"]; action?: Toast["action"]; ms?: number }) => void;
   confirm: (o: ConfirmOpts) => Promise<boolean>;
   askStartOption: (d: NeedsConfirmationDetails) => Promise<StartChoice | null>;
+  /** Contract 11: asks before a mark that makes one period longer than 10 days. */
+  confirmLongPeriod: (isPeriod: (ymd: string) => boolean, ymd: string) => Promise<boolean>;
   /** Runs a cycle command with undo toast, offline queue and the 409/422 flows. */
   exec: (cmd: Command, successText: string) => Promise<boolean>;
 };
@@ -62,6 +65,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
         if (e.code === "future_date") return t("errors.futureDate");
         if (e.code === "rate_limited" || e.code === "too_many_attempts") return t("errors.rateLimited");
         if (e.code === "forbidden_origin") return t("errors.forbiddenOrigin");
+        if (e.code === "consent_required") return t("consent.declined");
         if (e.status === 401) return t("errors.sessionExpired");
       }
       return t("errors.generic");
@@ -123,7 +127,19 @@ export function UIProvider({ children }: { children: ReactNode }) {
     execRef.current = exec;
   }, [exec]);
 
-  const value = useMemo(() => ({ toast: showToast, confirm, askStartOption, exec }), [showToast, confirm, askStartOption, exec]);
+  const confirmLongPeriod = useCallback<UI["confirmLongPeriod"]>(
+    async (isPeriod, ymd) => {
+      const run = periodRunIfMarked(isPeriod, ymd);
+      if (run <= LONG_PERIOD_DAYS) return true;
+      return confirm({ title: t("longPeriod.title", { count: run - 1 }), body: t("longPeriod.body"), confirmLabel: t("longPeriod.confirm") });
+    },
+    [confirm, t],
+  );
+
+  const value = useMemo(
+    () => ({ toast: showToast, confirm, askStartOption, confirmLongPeriod, exec }),
+    [showToast, confirm, askStartOption, confirmLongPeriod, exec],
+  );
 
   return (
     <Ctx.Provider value={value}>
