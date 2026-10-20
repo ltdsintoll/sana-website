@@ -72,5 +72,8 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next|_vercel|_static|.*\\..*).*)"],
+  // Metadata image routes (/icon, /apple-icon, /opengraph-image) and the PWA
+  // icons have no file extension: without them here the locale middleware
+  // rewrote them to /<locale>/icon, a 404 (no favicon, no share preview).
+  matcher: ["/((?!api|_next|_vercel|_static|pwa-icon|icon$|apple-icon$|opengraph-image$|.*\\..*).*)"],
 };
