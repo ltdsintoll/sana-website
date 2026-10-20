@@ -1,5 +1,5 @@
 @import "tailwindcss" source(".");
-@config "../../tailwind.config.ts";
+@config "../../tailwind.config.mjs";
 @source "../cabinet";
 
 body {
