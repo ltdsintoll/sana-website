@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import EmailCapture from "@/components/EmailCapture";
 import FAQ from "@/components/FAQ";
 import Features from "@/components/Features";
@@ -7,8 +8,16 @@ import JsonLd from "@/components/JsonLd";
 import PrivacySection from "@/components/PrivacySection";
 import ScreenshotsGallery from "@/components/ScreenshotsGallery";
 import TrustStrip from "@/components/TrustStrip";
+import { HOME_META, pageMetadata, SITE_URL, toLocale } from "@/lib/seo";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://sanacycle.com";
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const locale = toLocale((await params).locale);
+  return pageMetadata({ locale, path: "", ...HOME_META[locale] });
+}
 
 export default function HomePage() {
   const organizationLd = {

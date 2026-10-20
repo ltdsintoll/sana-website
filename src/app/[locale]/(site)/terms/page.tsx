@@ -1,12 +1,22 @@
 import type { Metadata } from "next";
 import { Link } from "@/i18n/navigation";
 import LegalLayout from "@/components/LegalLayout";
+import { pageMetadata, toLocale } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Terms of Service — Sana",
-  description:
-    "The ground rules for using Sana. Be decent, don't abuse the service, and you're good.",
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const locale = toLocale((await params).locale);
+  return pageMetadata({
+    locale,
+    path: "/terms",
+    title: "Terms of Service — Sana",
+    description:
+      "The ground rules for using Sana. Be decent, don't abuse the service, and you're good.",
+  });
+}
 
 export default function TermsPage() {
   return (

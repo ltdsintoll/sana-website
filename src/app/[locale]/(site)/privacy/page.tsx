@@ -1,11 +1,21 @@
 import type { Metadata } from "next";
 import LegalLayout from "@/components/LegalLayout";
+import { pageMetadata, toLocale } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Privacy Policy — Sana",
-  description:
-    "How Sana handles your data. Short version: we don't sell it, we don't track you, and you can delete everything anytime.",
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const locale = toLocale((await params).locale);
+  return pageMetadata({
+    locale,
+    path: "/privacy",
+    title: "Privacy Policy — Sana",
+    description:
+      "How Sana handles your data. Short version: we don't sell it, we don't track you, and you can delete everything anytime.",
+  });
+}
 
 export default function PrivacyPage() {
   return (
