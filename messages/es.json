@@ -142,6 +142,7 @@
     "title": "Te avisamos cuando lancemos.",
     "subtitle": "Un correo cuando Sana esté disponible. Sin newsletters, sin secuencias de marketing.",
     "placeholder": "tu@ejemplo.com",
+    "label": "Correo electrónico",
     "submit": "Avísame",
     "loading": "Enviando…",
     "success": "Estás en la lista. Te escribiremos pronto.",

@@ -19,7 +19,7 @@ export default function Features() {
     <section className="bg-surface-soft py-24 md:py-32">
       <div className="mx-auto max-w-7xl px-6">
         <div className="mx-auto mb-16 max-w-2xl text-center">
-          <div className="text-accent mb-3 text-xs font-medium tracking-widest uppercase">
+          <div className="text-accent-dark mb-3 text-xs font-medium tracking-widest uppercase">
             {t("eyebrow")}
           </div>
           <h2 className="text-text text-4xl font-light tracking-tight md:text-5xl">

@@ -17,7 +17,7 @@ export default function PrivacySection() {
       <div className="mx-auto max-w-6xl px-6">
         <div className="grid items-center gap-16 lg:grid-cols-2">
           <div>
-            <div className="text-accent mb-3 text-xs font-medium tracking-widest uppercase">
+            <div className="text-accent-dark mb-3 text-xs font-medium tracking-widest uppercase">
               {t("eyebrow")}
             </div>
             <h2 className="text-text text-4xl font-light leading-[1.1] tracking-tight md:text-5xl">

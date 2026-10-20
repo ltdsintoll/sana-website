@@ -47,7 +47,7 @@ h4 {
   margin-bottom: 0.75rem;
 }
 .prose-sana p {
-  color: #6b6b73;
+  color: #64646c;
   line-height: 1.75;
   margin-bottom: 1rem;
   font-size: 0.9375rem;
@@ -58,18 +58,18 @@ h4 {
   list-style: disc;
 }
 .prose-sana li {
-  color: #6b6b73;
+  color: #64646c;
   line-height: 1.75;
   margin-bottom: 0.5rem;
   font-size: 0.9375rem;
 }
 .prose-sana a {
-  color: #6b5fb8;
+  color: #6457b3;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 .prose-sana a:hover {
-  color: #8b7fd6;
+  color: #54489f;
 }
 .prose-sana strong {
   color: #1a1a1f;
