@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
 import type { ReactNode } from "react";
+import { startupImages } from "@/cabinet/lib/splash";
 import CabinetRoot from "@/cabinet/ui/CabinetRoot";
 
 // Personal cabinet: private, never indexed, no analytics, own PWA manifest.
@@ -17,7 +18,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     openGraph: null,
     twitter: null,
     manifest: `/app.webmanifest?locale=${locale}`,
-    appleWebApp: { capable: true, title: "Sana", statusBarStyle: "default" },
+    appleWebApp: { capable: true, title: "Sana", statusBarStyle: "default", startupImage: startupImages() },
     formatDetection: { telephone: false, email: false, address: false, date: false },
     referrer: "same-origin",
   };
