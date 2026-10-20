@@ -12,6 +12,7 @@ import {
 import type { CycleResponse, Me, NeedsConfirmationDetails, Symptom, Ymd } from "../api/types";
 import { addDays, defaultRange, diffDays, localToday } from "../lib/dates";
 import { loadSecure, saveSecure, wipeSecure } from "../lib/secureStore";
+import { clearSelectedDay } from "./selectedDay";
 
 export type AuthState = "unknown" | "authed" | "anon";
 
@@ -42,7 +43,11 @@ export type RunResult =
 
 const POLL_MS = 30_000;
 const CACHE_KEY = "snapshot.v1";
-const OUTBOX_KEY = "outbox.v1";
+const OUTBOX_KEY = "outbox.v2";
+const CHANNEL = "sana-cabinet";
+
+/** The outbox is stored with the id of the account it belongs to. */
+type PersistedOutbox = { owner: string; items: OutboxItem[] };
 
 type Persisted = {
   me: Me | null;
@@ -82,6 +87,18 @@ class CabinetStore {
   private flushing: Promise<void> | null = null;
   private refreshing: Promise<void> | null = null;
   private pollTimer: ReturnType<typeof setInterval> | null = null;
+  /**
+   * Bumped whenever the local data stops belonging to the current account
+   * (logout, account switch, deletion). Responses of requests started under an
+   * older generation are dropped, so a late reply can never bring back data
+   * of a signed-out account.
+   */
+  private gen = 0;
+  private refreshingGen = -1;
+  private flushingGen = -1;
+  private refreshToken: object | null = null;
+  private flushToken: object | null = null;
+  private channel: BroadcastChannel | null = null;
 
   subscribe = (fn: () => void) => {
     this.listeners.add(fn);
@@ -96,6 +113,7 @@ class CabinetStore {
   }
 
   private persist() {
+    if (!this.snap.me) return; // signed out: nothing to keep
     const p: Persisted = {
       me: this.snap.me,
       cycle: this.snap.cycle,
@@ -107,7 +125,10 @@ class CabinetStore {
   }
 
   private persistOutbox() {
-    void saveSecure(OUTBOX_KEY, this.snap.pending);
+    const owner = this.snap.me?.id;
+    if (!owner) return;
+    const p: PersistedOutbox = { owner, items: this.snap.pending };
+    void saveSecure(OUTBOX_KEY, p);
   }
 
   /** Called once by the provider in the browser. */
@@ -118,7 +139,7 @@ class CabinetStore {
 
     const [cached, outbox] = await Promise.all([
       loadSecure<Persisted>(CACHE_KEY),
-      loadSecure<OutboxItem[]>(OUTBOX_KEY),
+      loadSecure<PersistedOutbox>(OUTBOX_KEY),
     ]);
     if (cached?.me) {
       this.etag = cached.etag;
@@ -131,7 +152,8 @@ class CabinetStore {
         auth: "authed",
       });
     }
-    if (outbox?.length) this.set({ pending: outbox });
+    // Queued changes are only restored for the account they were made in.
+    if (cached?.me && outbox?.owner === cached.me.id && outbox.items?.length) this.set({ pending: outbox.items });
 
     this.attachListeners();
     await this.checkSession();
@@ -151,6 +173,25 @@ class CabinetStore {
     this.pollTimer = setInterval(() => {
       if (document.visibilityState === "visible") void this.pollVersion();
     }, POLL_MS);
+    // Other tabs of the cabinet: a logout there wipes this tab too, a login
+    // there makes this tab re-check which account the cookie belongs to.
+    try {
+      this.channel = new BroadcastChannel(CHANNEL);
+      this.channel.onmessage = (e: MessageEvent<{ type?: string }>) => {
+        if (e.data?.type === "logout") void this.clearLocal().then(() => this.set({ auth: "anon" }));
+        else if (e.data?.type === "login") void this.checkSession();
+      };
+    } catch {
+      /* old browsers: tabs sync on the next request instead */
+    }
+  }
+
+  private broadcast(type: "logout" | "login") {
+    try {
+      this.channel?.postMessage({ type });
+    } catch {
+      /* ignore */
+    }
   }
 
   /** Focus/visible/online: replay the queue, then refetch (ETag makes it cheap). */
@@ -164,12 +205,15 @@ class CabinetStore {
   }
 
   async checkSession() {
+    const gen = this.gen;
     try {
       const { user } = await api.session();
-      this.set({ me: user, auth: "authed", unreachable: false });
+      if (gen !== this.gen) return;
+      await this.adopt(user);
       await this.flush();
       await this.refresh();
     } catch (e) {
+      if (gen !== this.gen) return;
       if (e instanceof ApiError && e.status === 401) {
         // Session expired: keep the encrypted cache and unsent changes until the
         // next sign-in (wiped if a different account signs in, or on logout).
@@ -181,18 +225,43 @@ class CabinetStore {
     }
   }
 
-  /** After any successful login or account link. */
-  async signedIn(user: Me) {
-    if (this.snap.me && this.snap.me.id !== user.id) {
-      // Different account on this device: never mix cached data.
-      await wipeSecure();
-      this.etag = null;
-      this.set({ cycle: null, symptoms: {}, pending: [], onboarded: false });
-    }
+  /**
+   * Makes `user` the account of this device. A different account than the
+   * cached one never sees the cached data or replays its queued changes.
+   */
+  private async adopt(user: Me) {
+    if (this.snap.me && this.snap.me.id !== user.id) await this.clearLocal();
     this.set({ me: user, auth: "authed", unreachable: false });
     this.persist();
+    this.persistOutbox();
+  }
+
+  /** After any successful login. */
+  async signedIn(user: Me) {
+    await this.adopt(user);
+    this.broadcast("login");
     await this.flush();
     await this.refresh({ force: true });
+  }
+
+  /**
+   * After linking an email/Telegram. With a merge the session may now point to
+   * the other (surviving) account: same person, so queued changes are kept,
+   * but cached ids and the ETag are dropped and everything is refetched.
+   */
+  async linked(user: Me) {
+    const changed = !!this.snap.me && this.snap.me.id !== user.id;
+    if (changed) {
+      this.gen++;
+      this.etag = null;
+      this.symIds.clear();
+      this.set({ symptoms: {} });
+    }
+    this.set({ me: user });
+    this.persist();
+    this.persistOutbox();
+    await this.refresh({ force: true });
+    if (changed) await this.reloadOpenSymptoms();
   }
 
   markOnboarded() {
@@ -237,32 +306,45 @@ class CabinetStore {
 
   async refresh(opts: { force?: boolean } = {}) {
     if (this.snap.auth === "anon") return;
-    if (this.refreshing) return this.refreshing;
-    this.refreshing = (async () => {
+    // A refresh started for an older generation does not count: its result is dropped.
+    if (this.refreshing && this.refreshingGen === this.gen) return this.refreshing;
+    const gen = this.gen;
+    this.refreshingGen = gen;
+    const token = {};
+    this.refreshToken = token;
+    let finished = false;
+    const job = (async () => {
       this.set({ syncing: true });
       try {
         const r = await api.cycle(this.range, opts.force ? null : this.etag);
+        if (gen !== this.gen) return;
         if (r.status === 304 || !r.data) {
           this.set({ lastSyncedAt: Date.now(), unreachable: false });
         } else {
           this.applyCycle(r.data, r.etag);
         }
       } catch (e) {
-        if (!this.handleAuthError(e)) this.set({ unreachable: true });
+        if (gen === this.gen && !this.handleAuthError(e)) this.set({ unreachable: true });
       } finally {
-        this.set({ syncing: false });
-        this.refreshing = null;
+        finished = true;
+        if (this.refreshToken === token) {
+          this.set({ syncing: false });
+          this.refreshing = null;
+        }
       }
     })();
-    return this.refreshing;
+    if (this.refreshToken === token && !finished) this.refreshing = job;
+    return job;
   }
 
   /** Cheap version check every 30 s while visible; refetch only on change or a new day. */
   private async pollVersion() {
     if (this.snap.auth !== "authed") return;
     if (this.snap.pending.length) await this.flush();
+    const gen = this.gen;
     try {
       const v = await api.syncVersion();
+      if (gen !== this.gen) return;
       const c = this.snap.cycle;
       // The ETag includes "today": refetch after midnight so predictions move on.
       const today = v.today ?? (c ? localToday(c.settings.timezone ?? this.snap.me?.timezone) : null);
@@ -274,7 +356,7 @@ class CabinetStore {
         this.set({ lastSyncedAt: Date.now(), unreachable: false });
       }
     } catch (e) {
-      if (!this.handleAuthError(e)) this.set({ unreachable: true });
+      if (gen === this.gen && !this.handleAuthError(e)) this.set({ unreachable: true });
     }
   }
 
@@ -308,7 +390,9 @@ class CabinetStore {
 
   private async send(cmd: Command): Promise<unknown> {
     const { path, opts } = commandRequest(cmd, this.range);
+    const gen = this.gen;
     const r = await rawRequest<unknown>(path, opts);
+    if (gen !== this.gen) return r.data; // signed out meanwhile: keep nothing
     if (returnsCycle(cmd) && r.data) {
       // Mutation bodies carry the new state (and its ETag).
       this.applyCycle(r.data as CycleResponse, r.etag);
@@ -336,15 +420,21 @@ class CabinetStore {
   }
 
   async flush(): Promise<void> {
-    if (this.flushing) return this.flushing;
+    if (this.flushing && this.flushingGen === this.gen) return this.flushing;
     if (!this.snap.pending.length || this.snap.replayConflict || this.snap.auth !== "authed") return;
-    this.flushing = (async () => {
+    const gen = this.gen;
+    this.flushingGen = gen;
+    const token = {};
+    this.flushToken = token;
+    let finished = false;
+    const job = (async () => {
       try {
-        while (this.snap.pending.length) {
+        while (this.snap.pending.length && gen === this.gen) {
           const item = this.snap.pending[0];
           try {
             await this.send(item.cmd);
           } catch (e) {
+            if (gen !== this.gen) return;
             if (e instanceof NetworkError) {
               this.set({ unreachable: true });
               return;
@@ -358,15 +448,18 @@ class CabinetStore {
             // 4xx: the command can no longer apply (e.g. future_date after a timezone change).
             this.set({ droppedOnReplay: this.snap.droppedOnReplay + 1 });
           }
+          if (gen !== this.gen) return;
           this.set({ pending: this.snap.pending.filter((p) => p.id !== item.id) });
           this.persistOutbox();
         }
-        this.set({ unreachable: false });
+        if (gen === this.gen) this.set({ unreachable: false });
       } finally {
-        this.flushing = null;
+        finished = true;
+        if (this.flushToken === token) this.flushing = null;
       }
     })();
-    return this.flushing;
+    if (this.flushToken === token && !finished) this.flushing = job;
+    return job;
   }
 
   /** User answered the needs_confirmation dialog for a queued command. */
@@ -394,8 +487,10 @@ class CabinetStore {
 
   async loadSymptoms(ymd: Ymd) {
     this.openSymptomDays.add(ymd);
+    const gen = this.gen;
     try {
       const r = await api.symptoms(ymd);
+      if (gen !== this.gen) return;
       // Keep optimistic rows that are still being written or wait in the outbox.
       const busy = (c: string, k: string) => (this.symInFlight.get(this.symKey(ymd, c, k)) ?? 0) > 0;
       const local = (this.snap.symptoms[ymd] ?? []).filter((s) => busy(s.category, s.key));
@@ -537,12 +632,29 @@ class CabinetStore {
 
   // ---------------------------------------------------------------- session end
 
+  /** Forgets everything this device knows about the account. */
   private async clearLocal() {
-    await wipeSecure();
+    this.gen++;
+    if (this.refreshTimer) clearTimeout(this.refreshTimer);
     this.etag = null;
     this.range = null;
     this.symIds.clear();
-    this.set({ me: null, cycle: null, symptoms: {}, pending: [], replayConflict: null, onboarded: false });
+    this.symChain.clear();
+    this.symInFlight.clear();
+    this.openSymptomDays.clear();
+    this.set({
+      me: null,
+      cycle: null,
+      symptoms: {},
+      pending: [],
+      replayConflict: null,
+      droppedOnReplay: 0,
+      onboarded: false,
+      lastSyncedAt: null,
+    });
+    clearSelectedDay();
+    await wipeSecure();
+    await clearShellCaches();
   }
 
   async logout(all = false) {
@@ -554,16 +666,32 @@ class CabinetStore {
     }
     await this.clearLocal();
     this.set({ auth: "anon" });
+    this.broadcast("logout");
   }
 
   /** Account deleted on the server. */
   async forget() {
     await this.clearLocal();
     this.set({ auth: "anon" });
+    this.broadcast("logout");
   }
 
   stop() {
     if (this.pollTimer) clearInterval(this.pollTimer);
+  }
+}
+
+/**
+ * The service worker's page cache only holds the static app shell (no health
+ * data), but it is dropped on logout anyway so nothing of the session stays.
+ * Hashed JS/CSS (sana-static) is kept.
+ */
+async function clearShellCaches() {
+  try {
+    if (typeof caches === "undefined") return;
+    for (const k of await caches.keys()) if (k.startsWith("sana-shell-")) await caches.delete(k);
+  } catch {
+    /* ignore */
   }
 }
 

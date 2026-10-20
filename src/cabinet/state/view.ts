@@ -40,24 +40,4 @@ export function useCycleView(): CycleView {
   }, [cycle, me?.timezone, pending]);
 }
 
-let selected: Ymd | null = null;
-const KEY = "sana-selected-day";
-
-/** The day opened in /app/day. Kept out of the URL on purpose (privacy). */
-export function setSelectedDay(ymd: Ymd) {
-  selected = ymd;
-  try {
-    sessionStorage.setItem(KEY, ymd);
-  } catch {
-    /* ignore */
-  }
-}
-
-export function getSelectedDay(): Ymd | null {
-  if (selected) return selected;
-  try {
-    return sessionStorage.getItem(KEY);
-  } catch {
-    return null;
-  }
-}
+export { clearSelectedDay, getSelectedDay, setSelectedDay } from "./selectedDay";

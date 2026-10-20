@@ -41,8 +41,14 @@ async function getKey(): Promise<CryptoKey | null> {
     const existing = await tx<CryptoKey | undefined>("readonly", (s) => s.get(KEY_ID));
     if (existing) return existing;
     const key = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
-    await tx("readwrite", (s) => s.put(key, KEY_ID));
-    return key;
+    try {
+      // `add`, not `put`: if another tab created a key meanwhile, use that one
+      // instead of overwriting it (which would make its data unreadable).
+      await tx("readwrite", (s) => s.add(key, KEY_ID));
+      return key;
+    } catch {
+      return (await tx<CryptoKey | undefined>("readonly", (s) => s.get(KEY_ID))) ?? null;
+    }
   })().catch(() => null);
   return keyPromise;
 }
@@ -78,10 +84,12 @@ export async function loadSecure<T>(name: string): Promise<T | null> {
 /** Removes every stored value and the encryption key. */
 export async function wipeSecure(): Promise<void> {
   if (!available()) return;
+  // Forget the key first: a save that is still running can then only produce
+  // a record nobody can decrypt any more.
+  keyPromise = null;
   try {
     await tx("readwrite", (s) => s.clear());
   } catch {
     /* ignore */
   }
-  keyPromise = null;
 }

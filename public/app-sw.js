@@ -21,7 +21,11 @@
 
 const VERSION = new URL(self.location.href).searchParams.get("v") || "dev";
 const SHELL = `sana-shell-${VERSION}`;
-const STATIC = `sana-static-${VERSION}`;
+// Hashed /_next/static files never change, so one cache serves every deploy:
+// a page still running the previous build can lazy-load its chunks offline
+// after an update. Trimmed to the newest MAX_STATIC entries on activate.
+const STATIC = "sana-static";
+const MAX_STATIC = 400;
 const ROUTES = ["", "/today", "/calendar", "/stats", "/settings", "/day", "/login", "/onboarding"];
 
 function basePath() {
@@ -40,7 +44,7 @@ async function precache() {
         const html = await res.clone().text();
         await shell.put(base + r, res);
         for (const m of html.matchAll(/["'(](\/_next\/static\/[^"'()\s]+)["')]/g)) assets.add(m[1]);
-      } catch (_) {
+      } catch {
         /* offline during install: skip */
       }
     }),
@@ -62,6 +66,9 @@ self.addEventListener("activate", (event) => {
     (async () => {
       const keep = new Set([SHELL, STATIC]);
       for (const k of await caches.keys()) if (k.startsWith("sana-") && !keep.has(k)) await caches.delete(k);
+      const stat = await caches.open(STATIC);
+      const keys = await stat.keys();
+      for (const k of keys.slice(0, Math.max(0, keys.length - MAX_STATIC))) await stat.delete(k);
       await self.clients.claim();
     })(),
   );
@@ -80,11 +87,11 @@ async function networkFirstPage(req) {
     const timer = setTimeout(() => ctrl.abort(), 6000);
     const res = await fetch(req, { signal: ctrl.signal });
     clearTimeout(timer);
-    if (res.ok && !res.redirected && ROUTES.includes(key.slice(basePath().length))) {
+    if (res.ok && res.type === "basic" && !res.redirected && ROUTES.includes(key.slice(basePath().length))) {
       await shell.put(key, res.clone());
     }
     return res;
-  } catch (_) {
+  } catch {
     const base = basePath();
     return (
       (await shell.match(key)) ||
@@ -103,7 +110,7 @@ async function cacheFirst(req) {
   const hit = await cache.match(req);
   if (hit) return hit;
   const res = await fetch(req);
-  if (res.ok) cache.put(req, res.clone());
+  if (res.ok && res.type === "basic") cache.put(req, res.clone());
   return res;
 }
 
@@ -112,10 +119,10 @@ async function staleWhileRevalidate(req) {
   const hit = await cache.match(req);
   const net = fetch(req)
     .then((res) => {
-      if (res.ok) cache.put(req, res.clone());
+      if (res.ok && res.type === "basic") cache.put(req, res.clone());
       return res;
     })
-    .catch(() => hit);
+    .catch(() => hit || Response.error());
   return hit || net;
 }
 

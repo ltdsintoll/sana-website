@@ -14,6 +14,27 @@ export type DeepLinkState =
   | { kind: "cancelled" }
   | { kind: "error"; code: string };
 
+/** Telegram bot usernames: 5-32 letters, digits and underscores. */
+export function isBotUsername(v: unknown): v is string {
+  return typeof v === "string" && /^[A-Za-z][A-Za-z0-9_]{3,31}$/.test(v);
+}
+
+/**
+ * Only Telegram links are ever opened from an API answer (never e.g. a
+ * `javascript:` URL from a compromised or misconfigured backend).
+ */
+export function safeTelegramUrl(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  try {
+    const u = new URL(v);
+    if (u.protocol === "https:" && (u.hostname === "t.me" || u.hostname === "telegram.me")) return u.toString();
+    if (u.protocol === "tg:") return u.toString();
+  } catch {
+    /* invalid */
+  }
+  return null;
+}
+
 /**
  * Telegram login/link through the bot deep link (best on phones): start ->
  * open t.me link -> user confirms in the bot -> we poll until confirmed.
@@ -23,15 +44,22 @@ export type DeepLinkState =
 export function useTelegramDeepLink(purpose: "login" | "link", onConfirmed: (user: Me) => void) {
   const [state, setState] = useState<DeepLinkState>({ kind: "idle" });
   const confirmedRef = useRef(onConfirmed);
-  confirmedRef.current = onConfirmed;
+  useEffect(() => {
+    confirmedRef.current = onConfirmed;
+  }, [onConfirmed]);
 
   const start = useCallback(async () => {
     setState({ kind: "starting" });
     try {
       const r = await api.telegramStart(purpose);
+      const botUrl = safeTelegramUrl(r.botUrl);
+      if (!botUrl || !r.pollToken) {
+        setState({ kind: "error", code: "bad_response" });
+        return;
+      }
       setState({
         kind: "waiting",
-        botUrl: r.botUrl,
+        botUrl,
         pollToken: r.pollToken,
         intervalMs: Math.max(1000, r.pollIntervalMs || 2000),
         expiresAt: Date.parse(r.expiresAt) || Date.now() + 600_000,
@@ -118,12 +146,17 @@ export function TelegramWidget({
   const ref = useRef<HTMLDivElement>(null);
   const locale = useLocale();
   const cb = useRef(onAuth);
-  cb.current = onAuth;
+  useEffect(() => {
+    cb.current = onAuth;
+  }, [onAuth]);
 
   useEffect(() => {
-    if (IS_MOCK || !ref.current || !botUsername) return;
+    if (IS_MOCK || !ref.current || !isBotUsername(botUsername)) return;
     const w = window as unknown as { __sanaTgAuth?: (u: TelegramWidgetUser) => void };
-    w.__sanaTgAuth = (u) => cb.current(u);
+    // The widget only hands over what Telegram signed; the API checks the hash.
+    w.__sanaTgAuth = (u) => {
+      if (u && typeof u === "object" && typeof u.hash === "string") cb.current(u);
+    };
     const s = document.createElement("script");
     s.async = true;
     s.src = "https://telegram.org/js/telegram-widget.js?22";
@@ -132,13 +165,14 @@ export function TelegramWidget({
     s.setAttribute("data-radius", "14");
     s.setAttribute("data-userpic", "false");
     s.setAttribute("data-request-access", "write");
-    s.setAttribute("data-lang", locale);
+    s.setAttribute("data-lang", /^[a-z]{2}$/.test(locale) ? locale : "en");
     s.setAttribute("data-onauth", "__sanaTgAuth(user)");
     const host = ref.current;
     host.innerHTML = "";
     host.appendChild(s);
     return () => {
       host.innerHTML = "";
+      delete w.__sanaTgAuth;
     };
   }, [botUsername, locale]);
 
@@ -146,7 +180,7 @@ export function TelegramWidget({
     return (
       <button
         type="button"
-        className="min-h-12 rounded-2xl bg-[#54a9eb] px-5 text-base font-medium text-white"
+        className="min-h-12 rounded-2xl bg-[#1f7ab8] px-5 text-base font-medium text-white"
         onClick={() =>
           onAuth({ id: 100200300, first_name: "Anna", username: "anna", auth_date: Math.floor(Date.now() / 1000), hash: "demo" })
         }

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { connection } from "next/server";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
 import type { ReactNode } from "react";
@@ -39,6 +40,8 @@ export default async function CabinetLayout({
   children: ReactNode;
   params: Promise<{ locale: string }>;
 }) {
+  // Rendered per request: the CSP nonce from src/proxy.ts must reach the scripts.
+  await connection();
   const { locale } = await params;
   setRequestLocale(locale);
   const messages = (await getMessages()) as Record<string, unknown>;
