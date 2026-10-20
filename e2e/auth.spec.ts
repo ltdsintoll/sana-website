@@ -63,7 +63,7 @@ test("another account on the same browser never sees the previous data", async (
   await logout(page);
   await login(page, "new@example.com");
   await page.waitForURL(/\/app\/onboarding/);
-  await expect(page.getByText("Ваши данные остаются вашими")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Ваши данные остаются вашими" })).toBeVisible();
   // Straight to a tab: still onboarding, no cached cycle of the first account.
   await page.goto("/ru/app/stats");
   await page.waitForURL(/\/app\/onboarding/);
@@ -73,7 +73,7 @@ test("a logout in one tab signs out the other tabs", async ({ page, context }) =
   await loginToToday(page);
   const other = await context.newPage();
   await other.goto("/ru/app/stats");
-  await expect(other.getByText("История циклов")).toBeVisible();
+  await expect(other.getByRole("heading", { name: "История циклов" })).toBeVisible();
   await logout(page);
   await other.waitForURL(/\/app\/login/, { timeout: 10_000 });
 });

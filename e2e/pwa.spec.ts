@@ -61,7 +61,7 @@ test("security headers and nonce CSP on cabinet pages; no CSP violations", async
   await loginToToday(page);
   await page.goto("/ru/app/calendar");
   await page.goto("/ru/app/settings");
-  await expect(page.getByText("Уведомления на этом устройстве")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Уведомления на этом устройстве" })).toBeVisible();
   expect(violations).toEqual([]);
   expect(errors).toEqual([]);
 });

@@ -3,6 +3,8 @@ import { expect, test, type Page } from "@playwright/test";
 import { login, loginToToday } from "./helpers";
 
 async function axe(page: Page) {
+  // After a client-side navigation Next.js streams the new <title> in a moment later.
+  await expect(page).toHaveTitle(/\S/);
   const r = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
   return r.violations
     .filter((v) => v.impact === "serious" || v.impact === "critical")
@@ -37,6 +39,6 @@ test("axe: partner view and onboarding", async ({ page }) => {
   await page.waitForURL(/\/app\/onboarding/);
   const onboarding = await axe(page);
   await page.goto("/ru/app/partner");
-  await expect(page.getByText("Совет на сегодня")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Совет на сегодня" })).toBeVisible();
   expect({ onboarding, partner: await axe(page) }).toEqual({ onboarding: [], partner: [] });
 });

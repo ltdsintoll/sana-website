@@ -42,7 +42,7 @@ test("owner invites, partner signs up and accepts, nudges, owner manages access"
   await accept.click();
   await page.waitForURL(/\/app\/partner$/);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Anna");
-  await expect(page.getByText("Совет на сегодня")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Совет на сегодня" })).toBeVisible();
   await shot(page, "26-partner-view");
 
   // Nudges: 3 per day.
@@ -56,7 +56,7 @@ test("owner invites, partner signs up and accepts, nudges, owner manages access"
   // A partner-only account is not pushed into the cycle questions.
   await page.goto("/ru/app/today");
   await expect(page).toHaveURL(/\/app\/today/);
-  await expect(page.getByText("С вами делятся")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "С вами делятся" })).toBeVisible();
 
   // Owner: the partner is listed, permissions can be changed, access revoked.
   await logout(page);
@@ -83,7 +83,7 @@ test("demo partner account sees a shared cycle", async ({ page }) => {
   await page.goto("/ru/app/settings").catch(() => undefined);
   // Through the list on the settings screen (after consent) or directly:
   await page.goto("/ru/app/partner");
-  await expect(page.getByText("Совет на сегодня")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Совет на сегодня" })).toBeVisible();
   await expect(page.locator("section[aria-live=polite]").first()).toContainText(/Месячные|Задержка|Сегодня/);
 });
 
