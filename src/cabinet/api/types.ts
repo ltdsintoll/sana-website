@@ -25,6 +25,11 @@ export type Me = {
   mode: Mode;
   hasProfile: boolean;
   createdAt: string;
+  /**
+   * v1.5: ids of accounts that were merged into this one. A device that still
+   * caches one of them (e.g. with changes queued offline) is the same person.
+   */
+  mergedAccountIds?: string[];
 };
 
 /** v1.3 (section 12): the server rejects health-data writes until `accepted`. */

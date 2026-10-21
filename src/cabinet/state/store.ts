@@ -52,10 +52,51 @@ export type RunResult =
 const POLL_MS = 30_000;
 const CACHE_KEY = "snapshot.v1";
 const OUTBOX_KEY = "outbox.v2";
+const PARKED_KEY = "outbox.parked.v1";
 const CHANNEL = "sana-cabinet";
+/** Unsent changes of an account that is not signed in here are kept this long. */
+const PARKED_TTL_MS = 30 * 86_400_000;
 
 /** The outbox is stored with the id of the account it belongs to. */
 type PersistedOutbox = { owner: string; items: OutboxItem[] };
+
+/**
+ * Unsent changes of accounts that are not the current one, by account id.
+ * They are never sent with another account's session: they wait (encrypted)
+ * until that account signs in again on this device.
+ */
+type ParkedOutboxes = Record<string, { items: OutboxItem[]; parkedAt: number }>;
+
+/** Serialises outbox writes across tabs (Web Locks), so no tab overwrites another tab's queue. */
+async function withOutboxLock<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    const locks = (navigator as Navigator & { locks?: LockManager }).locks;
+    if (locks?.request) return (await locks.request("sana-outbox", fn)) as T;
+  } catch {
+    /* no Web Locks: best effort */
+  }
+  return fn();
+}
+
+function freshParked(p: ParkedOutboxes | null): ParkedOutboxes {
+  const out: ParkedOutboxes = {};
+  const now = Date.now();
+  for (const [owner, v] of Object.entries(p ?? {})) {
+    if (v?.items?.length && now - v.parkedAt < PARKED_TTL_MS) out[owner] = v;
+  }
+  return out;
+}
+
+function byCreated(a: OutboxItem, b: OutboxItem) {
+  return a.createdAt - b.createdAt;
+}
+
+function addParked(parked: ParkedOutboxes, owner: string, items: OutboxItem[]): ParkedOutboxes {
+  if (!items.length) return parked;
+  const cur = parked[owner]?.items ?? [];
+  const known = new Set(cur.map((i) => i.id));
+  return { ...parked, [owner]: { items: [...cur, ...items.filter((i) => !known.has(i.id))].sort(byCreated), parkedAt: Date.now() } };
+}
 
 type Persisted = {
   me: Me | null;
@@ -110,6 +151,9 @@ class CabinetStore {
   private channel: BroadcastChannel | null = null;
   /** Writes waiting for the consent screen (resolved true when accepted). */
   private consentWaiters: Array<(accepted: boolean) => void> = [];
+  /** Queue items this tab sent, cancelled or discarded (never written back from another tab's copy). */
+  private outboxGone = new Set<string>();
+  private outboxWrites: Promise<void> = Promise.resolve();
 
   subscribe = (fn: () => void) => {
     this.listeners.add(fn);
@@ -135,11 +179,61 @@ class CabinetStore {
     void saveSecure(CACHE_KEY, p);
   }
 
+  /**
+   * Writes the queue. Items another tab of the same account queued meanwhile
+   * are kept (merged by id), so closing one tab never loses the other's changes.
+   */
   private persistOutbox() {
     const owner = this.snap.me?.id;
     if (!owner) return;
-    const p: PersistedOutbox = { owner, items: this.snap.pending };
-    void saveSecure(OUTBOX_KEY, p);
+    const mine = this.snap.pending;
+    const gone = new Set(this.outboxGone);
+    const gen = this.gen;
+    this.outboxWrites = this.outboxWrites
+      .then(() =>
+        withOutboxLock(async () => {
+          if (gen !== this.gen) return;
+          const stored = await loadSecure<PersistedOutbox>(OUTBOX_KEY);
+          const ids = new Set(mine.map((i) => i.id));
+          const others = stored?.owner === owner ? (stored.items ?? []).filter((i) => !ids.has(i.id) && !gone.has(i.id)) : [];
+          const p: PersistedOutbox = { owner, items: [...mine, ...others].sort(byCreated) };
+          if (gen === this.gen) await saveSecure(OUTBOX_KEY, p);
+        }),
+      )
+      .catch(() => undefined);
+  }
+
+  private async loadParked(): Promise<ParkedOutboxes> {
+    return freshParked(await loadSecure<ParkedOutboxes>(PARKED_KEY));
+  }
+
+  /** Keeps `items` of account `owner` for later (it is not the account signed in now). */
+  private async park(owner: string, items: OutboxItem[]) {
+    if (!items.length) return;
+    await withOutboxLock(async () => {
+      const parked = addParked(await this.loadParked(), owner, items);
+      await saveSecure(PARKED_KEY, parked);
+    });
+  }
+
+  /** Unsent changes parked for `user` (or for an account merged into it) go back into the queue. */
+  private async unpark(user: Me) {
+    const parked = await this.loadParked();
+    const owners = [user.id, ...(user.mergedAccountIds ?? [])].filter((o) => parked[o]);
+    if (!owners.length) return;
+    const have = new Set(this.snap.pending.map((p) => p.id));
+    const back = owners.flatMap((o) => parked[o]!.items).filter((i) => !have.has(i.id));
+    if (back.length) {
+      this.set({ pending: [...back, ...this.snap.pending].sort(byCreated) });
+      // Into the account's queue first, only then out of the parked store.
+      this.persistOutbox();
+      await this.outboxWrites;
+    }
+    await withOutboxLock(async () => {
+      const now = await this.loadParked();
+      for (const o of owners) delete now[o];
+      await saveSecure(PARKED_KEY, now);
+    });
   }
 
   /** Called once by the provider in the browser. */
@@ -164,8 +258,12 @@ class CabinetStore {
         auth: "authed",
       });
     }
-    // Queued changes are only restored for the account they were made in.
-    if (cached?.me && outbox?.owner === cached.me.id && outbox.items?.length) this.set({ pending: outbox.items });
+    // Queued changes are only restored for the account they were made in;
+    // a queue of another account waits until that account signs in again.
+    if (outbox?.owner && outbox.items?.length) {
+      if (cached?.me && outbox.owner === cached.me.id) this.set({ pending: outbox.items });
+      else await this.park(outbox.owner, outbox.items);
+    }
 
     this.attachListeners();
     await this.checkSession();
@@ -239,11 +337,19 @@ class CabinetStore {
 
   /**
    * Makes `user` the account of this device. A different account than the
-   * cached one never sees the cached data or replays its queued changes.
+   * cached one never sees the cached data or replays its queued changes:
+   * those changes are parked (not deleted) until their account signs in again.
+   * The survivor of an account merge (`mergedAccountIds`) is the same person:
+   * the queue is kept and sent to it.
    */
   private async adopt(user: Me) {
-    if (this.snap.me && this.snap.me.id !== user.id) await this.clearLocal();
+    const prev = this.snap.me;
+    if (prev && prev.id !== user.id) {
+      if (user.mergedAccountIds?.includes(prev.id)) this.forgetCachedIds();
+      else await this.clearLocal({ parkPending: true });
+    }
     this.set({ me: user, auth: "authed", unreachable: false });
+    await this.unpark(user);
     this.persist();
     this.persistOutbox();
     // Accepted elsewhere (another tab, the Mini App): release waiting writes.
@@ -265,17 +371,20 @@ class CabinetStore {
    */
   async linked(user: Me) {
     const changed = !!this.snap.me && this.snap.me.id !== user.id;
-    if (changed) {
-      this.gen++;
-      this.etag = null;
-      this.symIds.clear();
-      this.set({ symptoms: {} });
-    }
+    if (changed) this.forgetCachedIds();
     this.set({ me: user });
     this.persist();
     this.persistOutbox();
     await this.refresh({ force: true });
     if (changed) await this.reloadOpenSymptoms();
+  }
+
+  /** Same person, new account id (merge): drop ids and the ETag of the old account, keep the queue. */
+  private forgetCachedIds() {
+    this.gen++;
+    this.etag = null;
+    this.symIds.clear();
+    this.set({ symptoms: {} });
   }
 
   markOnboarded() {
@@ -480,6 +589,7 @@ class CabinetStore {
   cancelQueued(id: string): boolean {
     const exists = this.snap.pending.some((p) => p.id === id);
     if (!exists) return false;
+    this.outboxGone.add(id);
     this.set({ pending: this.snap.pending.filter((p) => p.id !== id) });
     this.persistOutbox();
     return true;
@@ -520,6 +630,7 @@ class CabinetStore {
             this.set({ droppedOnReplay: this.snap.droppedOnReplay + 1 });
           }
           if (gen !== this.gen) return;
+          this.outboxGone.add(item.id);
           this.set({ pending: this.snap.pending.filter((p) => p.id !== item.id) });
           this.persistOutbox();
         }
@@ -538,7 +649,10 @@ class CabinetStore {
     const c = this.snap.replayConflict;
     if (!c) return;
     let pending = this.snap.pending;
-    if (choice === "discard") pending = pending.filter((p) => p.id !== c.item.id);
+    if (choice === "discard") {
+      this.outboxGone.add(c.item.id);
+      pending = pending.filter((p) => p.id !== c.item.id);
+    }
     else
       pending = pending.map((p) =>
         p.id === c.item.id && p.cmd.type === "periodStart" ? { ...p, cmd: { ...p.cmd, as: choice } } : p,
@@ -703,9 +817,22 @@ class CabinetStore {
 
   // ---------------------------------------------------------------- session end
 
-  /** Forgets everything this device knows about the account. */
-  private async clearLocal() {
+  /**
+   * Forgets everything this device knows about the account. Unsent changes of
+   * other accounts (parked) stay; with `parkPending` this account's unsent
+   * changes are parked too (another account signs in: nothing is lost).
+   */
+  private async clearLocal(opts: { parkPending?: boolean } = {}) {
+    const owner = this.snap.me?.id;
+    let pending = this.snap.pending;
+    if (opts.parkPending && owner) {
+      // Also what other tabs of this account queued (they share the stored queue).
+      const stored = await loadSecure<PersistedOutbox>(OUTBOX_KEY);
+      const ids = new Set(pending.map((i) => i.id));
+      if (stored?.owner === owner) pending = [...pending, ...(stored.items ?? []).filter((i) => !ids.has(i.id) && !this.outboxGone.has(i.id))];
+    }
     this.gen++;
+    this.outboxGone.clear();
     if (this.refreshTimer) clearTimeout(this.refreshTimer);
     this.etag = null;
     this.range = null;
@@ -725,7 +852,14 @@ class CabinetStore {
       lastSyncedAt: null,
     });
     clearSelections();
-    await wipeSecure();
+    await withOutboxLock(async () => {
+      let parked = await this.loadParked();
+      if (opts.parkPending && owner) parked = addParked(parked, owner, pending);
+      // Logout / deletion of this account: its unsent changes go (the logout screen warns first).
+      else if (owner) delete parked[owner];
+      await wipeSecure();
+      if (Object.keys(parked).length) await saveSecure(PARKED_KEY, parked);
+    });
     await clearShellCaches();
   }
 

@@ -1088,6 +1088,37 @@ function routePartners(db: Db, u: MockUser, M: string, p: string, b: Record<stri
   return null;
 }
 
+/**
+ * Tests: the account was merged into another one on another device (linking
+ * email <-> Telegram). The session now points to the survivor, which lists
+ * the old id in `mergedAccountIds` (API v1.5). Returns the new id.
+ */
+export function simulateMergeElsewhere(): string | null {
+  const db = load();
+  const u = db.session ? db.users[db.session] : undefined;
+  if (!u) return null;
+  const oldId = u.me.id;
+  const newId = id();
+  u.me = { ...u.me, id: newId, mergedAccountIds: [...(u.me.mergedAccountIds ?? []), oldId] };
+  delete db.users[oldId];
+  db.users[newId] = u;
+  for (const l of Object.values(db.links ?? {})) {
+    if (l.ownerId === oldId) l.ownerId = newId;
+    if (l.partnerUserId === oldId) l.partnerUserId = newId;
+  }
+  db.session = newId;
+  bump(u);
+  save(db);
+  return newId;
+}
+
+/** Tests: the session ended on the server (expired / revoked elsewhere). */
+export function expireSession(): void {
+  const db = load();
+  db.session = null;
+  save(db);
+}
+
 /** Lets demo/tests simulate a change made in Telegram (bumps dataVersion). */
 export function simulateRemoteChange(): void {
   const db = load();

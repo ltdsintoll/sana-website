@@ -115,6 +115,8 @@ async function sendRequest<T>(path: string, opts: RequestOptions): Promise<RawRe
   let payload: unknown = null;
 
   if (IS_MOCK) {
+    // The demo backend lives in the page: behave like the network when the device is offline.
+    if (typeof navigator !== "undefined" && navigator.onLine === false) throw new NetworkError("offline");
     mockModule ??= import("./mock");
     const mock = await mockModule;
     const r = await mock.handle(method, path, opts.body, headers);

@@ -817,7 +817,10 @@ function SessionCard() {
           if (
             !(await ui.confirm({
               title: t("settings.logoutAll"),
-              body: t("settings.logoutAllText"),
+              // Unsent changes of this device are discarded with the session: say so.
+              body: pending.length
+                ? `${t("settings.logoutAllText")} ${t("settings.logoutPending", { count: pending.length })}`
+                : t("settings.logoutAllText"),
               confirmLabel: t("settings.logoutAll"),
             }))
           )
