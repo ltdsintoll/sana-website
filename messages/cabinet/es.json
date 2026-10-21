@@ -633,5 +633,32 @@
     "later": "Ahora no",
     "declined": "No se guardó: primero hace falta el consentimiento para tratar datos de salud.",
     "accepted": "Gracias. Guardado"
+  },
+  "privacy": {
+    "exportTitle": "Mis datos",
+    "exportBody": "Descarga un archivo JSON con todos tus registros: periodos, registros diarios, síntomas, embarazo, ajustes e historial de consentimientos.",
+    "exportButton": "Descargar mis datos (JSON)",
+    "exportFirst": "Descargar mis datos primero",
+    "exported": "Archivo descargado",
+    "consentTitle": "Consentimiento para tratar datos de salud",
+    "consentGiven": "Dado el {date}.",
+    "consentWithdrawnOn": "Retirado el {date}. Los registros nuevos no se guardan.",
+    "consentMissing": "Aún no hay consentimiento: los registros nuevos no se guardan.",
+    "withdrawButton": "Retirar consentimiento",
+    "withdrawTitle": "¿Retirar el consentimiento?",
+    "pointWrites": "No se guardarán nuevos registros del ciclo ni del bienestar.",
+    "pointReminders": "Los recordatorios se pausan y tu pareja deja de ver tu ciclo.",
+    "pointKept": "Los datos ya guardados se conservan hasta que elimines tu cuenta. Puedes descargarlos o eliminarlos cuando quieras.",
+    "pointAgain": "Puedes volver a dar tu consentimiento y todo funcionará como antes.",
+    "withdrawConfirm": "Retirar consentimiento",
+    "withdrawn": "Consentimiento retirado. Tus datos se conservan; los registros nuevos no se guardan.",
+    "bannerWithdrawn": "Retiraste el consentimiento: los registros nuevos no se guardan y los recordatorios están en pausa. Tus datos guardados siguen aquí.",
+    "bannerReconsent": "Actualizamos nuestra política de privacidad. Para guardar registros nuevos, confirma tu consentimiento.",
+    "bannerAction": "Dar consentimiento",
+    "reconsentTitle": "Actualizamos nuestra política de privacidad",
+    "reconsentBody": "Lee la nueva versión y confirma tu consentimiento para seguir usando el calendario. Tus datos siguen aquí.",
+    "againTitle": "¿Dar consentimiento de nuevo?",
+    "againBody": "Retiraste el consentimiento el {date}. Para guardar registros nuevos y recibir recordatorios, da tu consentimiento de nuevo.",
+    "sharingPaused": "{name} no está compartiendo datos del ciclo ahora mismo."
   }
 }

@@ -17,7 +17,7 @@ test("start 10 days ago asks (409 needs_confirmation) and can be saved as spotti
   await page.getByRole("button", { name: "Начались в другой день" }).click();
   await page.getByRole("dialog").locator('input[type="date"]').fill(await todayYmd(page, -10));
   await page.getByRole("dialog").getByRole("button", { name: "Выбрать" }).click();
-  await expect(page.getByText("Это новые месячные?")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Это новые месячные?" })).toBeVisible();
   await shot(page, "03b-needs-confirmation");
   await page.getByRole("button", { name: /Мажущие выделения/ }).click();
   await expect(toast(page)).toContainText("Отмечены мажущие выделения");

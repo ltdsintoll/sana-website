@@ -22,7 +22,7 @@ test("link an email that has its own account: merge confirmation", async ({ page
   await dialog.getByLabel("Email").fill("merge-old@example.com");
   await dialog.getByRole("button", { name: "Получить код" }).click();
   await dialog.getByLabel("Код из письма").fill("123456");
-  await expect(page.getByText("Объединить аккаунты?")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Объединить аккаунты?" })).toBeVisible();
   await shot(page, "19-merge-confirm");
   await page.getByRole("button", { name: "Объединить", exact: true }).click();
   await expect(page.getByText("Email привязан")).toBeVisible();

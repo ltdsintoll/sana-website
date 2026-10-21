@@ -210,6 +210,10 @@ export const api = {
   /** v1.3: the server sets the version; clients only send `accepted: true`. */
   consent: () => req<{ consent: Consent }>("/api/v2/consent"),
   acceptConsent: () => req<{ consent: Consent }>("/api/v2/consent", { method: "POST", body: { accepted: true } }),
+  /** v1.4: no new health data, reminders and sharing stop; data stays until deletion. */
+  withdrawConsent: () => req<{ consent: Consent }>("/api/v2/consent/withdraw", { method: "POST", body: {} }),
+  /** v1.4: everything the account holds (GDPR export), as JSON. */
+  exportData: () => req<Record<string, unknown>>("/api/v2/export"),
   deleteAccount: () => req<null>("/api/gdpr/delete-account", { method: "POST" }),
   notifications: () => req<NotificationSettings | null>("/api/notifications"),
   updateNotifications: (body: Partial<NotificationSettings>) =>

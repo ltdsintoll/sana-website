@@ -633,5 +633,32 @@
     "later": "Not now",
     "declined": "Not saved: consent to processing health data is needed first.",
     "accepted": "Thank you. Saved"
+  },
+  "privacy": {
+    "exportTitle": "My data",
+    "exportBody": "Download a JSON file with all your records: periods, day logs, symptoms, pregnancy, settings and consent history.",
+    "exportButton": "Download my data (JSON)",
+    "exportFirst": "Download my data first",
+    "exported": "File downloaded",
+    "consentTitle": "Consent to process health data",
+    "consentGiven": "Given on {date}.",
+    "consentWithdrawnOn": "Withdrawn on {date}. New entries are not saved.",
+    "consentMissing": "No consent yet: new entries are not saved.",
+    "withdrawButton": "Withdraw consent",
+    "withdrawTitle": "Withdraw consent?",
+    "pointWrites": "New cycle and wellbeing entries will not be saved.",
+    "pointReminders": "Reminders pause, and your partner no longer sees your cycle.",
+    "pointKept": "Data you already saved stays until you delete your account. You can download or delete it at any time.",
+    "pointAgain": "You can give consent again and everything works as before.",
+    "withdrawConfirm": "Withdraw consent",
+    "withdrawn": "Consent withdrawn. Your data is kept; new entries are not saved.",
+    "bannerWithdrawn": "You withdrew consent: new entries are not saved and reminders are paused. Your saved data is still here.",
+    "bannerReconsent": "We updated our privacy policy. To save new entries, please confirm your consent.",
+    "bannerAction": "Give consent",
+    "reconsentTitle": "We updated our privacy policy",
+    "reconsentBody": "Read the new version and confirm your consent to keep using the calendar. Your data is all here.",
+    "againTitle": "Give consent again?",
+    "againBody": "You withdrew consent on {date}. To save new entries and get reminders, give consent again.",
+    "sharingPaused": "{name} is not sharing cycle data right now."
   }
 }

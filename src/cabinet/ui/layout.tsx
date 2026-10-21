@@ -5,10 +5,11 @@ import { useTranslations } from "next-intl";
 import { useEffect, type ReactNode } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { useCabinet } from "../state/hooks";
-import { hasConsent } from "../api/types";
+import { consentStatus } from "../api/types";
 import type { Snapshot } from "../state/store";
 import { store } from "../state/store";
 import { Button, Spinner } from "./primitives";
+import { ConsentBanner } from "./consent";
 
 export function Screen({ title, action, children, tabbar = true }: { title?: ReactNode; action?: ReactNode; children: ReactNode; tabbar?: boolean }) {
   return (
@@ -22,6 +23,7 @@ export function Screen({ title, action, children, tabbar = true }: { title?: Rea
           </div>
         </header>
       ) : null}
+      <ConsentBanner />
       {children}
     </main>
   );
@@ -106,7 +108,9 @@ export function RequireAuth({ children, allowOnboarding = false }: { children: R
  */
 export function needsOnboardingOf(s: Snapshot): boolean {
   if (!s.me) return false;
-  if (!hasConsent(s.me)) return true;
+  // v1.4: only accounts that never consented go through onboarding; after a withdrawal or a new
+  // policy version the cabinet stays readable (banner + consent sheet on the next write).
+  if (consentStatus(s.me) === "none") return true;
   if (s.onboarded || s.me.hasProfile) return false;
   return s.cycle?.status.state === "no_data";
 }

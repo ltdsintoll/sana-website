@@ -34,12 +34,29 @@ export type Consent = {
   /** `null` for consents given before versions were recorded. */
   version: string | null;
   currentVersion: string | null;
+  /** v1.4: accepted an older text; writes answer consent_required until the current one is accepted. */
+  needsReconsent?: boolean;
+  /** v1.4: when consent was withdrawn (null when never withdrawn or accepted again since). */
+  withdrawnAt?: string | null;
 };
 
-/** Has this account accepted the GDPR consent? (v1.3 `consent`, else `gdprConsent`). */
+/** Has this account a current GDPR consent? (v1.3 `consent`, else `gdprConsent`). */
 export function hasConsent(me: Pick<Me, "gdprConsent" | "consent"> | null | undefined): boolean {
   if (!me) return false;
-  return me.consent ? me.consent.accepted === true : me.gdprConsent === true;
+  return me.consent ? me.consent.accepted === true && me.consent.needsReconsent !== true : me.gdprConsent === true;
+}
+
+/**
+ * v1.4: "none" never consented (onboarding asks), "withdrawn" chose to withdraw (the cabinet stays
+ * readable with a banner), "reconsent" a newer policy text waits to be accepted.
+ */
+export type ConsentStatus = "ok" | "none" | "withdrawn" | "reconsent";
+export function consentStatus(me: Pick<Me, "gdprConsent" | "consent"> | null | undefined): ConsentStatus {
+  if (!me) return "none";
+  if (hasConsent(me)) return "ok";
+  if (me.consent?.accepted && me.consent.needsReconsent) return "reconsent";
+  if (me.consent?.withdrawnAt) return "withdrawn";
+  return "none";
 }
 
 export type AuthConfig = {
@@ -280,6 +297,10 @@ export type PartnerOfLink = {
 export type PartnerDayType = "period" | "period_predicted" | "fertile" | "pms" | null;
 
 export type PartnerView = {
+  /** v1.4: the owner withdrew consent; nothing about her cycle is shared. */
+  sharingPaused?: boolean;
+  /** v1.4: the partner's own consent, stored on the server. */
+  partnerConsent?: { acceptedAt: string | null; version: string | null; current: boolean };
   today: Ymd;
   dayType: "period" | "fertile" | "pms" | "safe" | "nothing";
   daysUntilPeriod: number | null;

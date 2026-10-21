@@ -22,7 +22,7 @@ test("offline: changes are queued and replayed; cached shell after reload", asyn
 
   // Reload while offline: shell from the service worker, data from the encrypted cache.
   await page.goto("/ru/app/stats").catch(() => undefined);
-  await expect(page.getByText("История циклов")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "История циклов" })).toBeVisible();
   await shot(page, "11-offline-stats");
 
   await context.setOffline(false);

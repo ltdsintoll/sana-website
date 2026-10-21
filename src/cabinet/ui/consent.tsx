@@ -1,10 +1,10 @@
 "use client";
 
 import { ShieldCheck } from "lucide-react";
-import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { useEffect, useState } from "react";
 import { Link } from "@/i18n/navigation";
-import { hasConsent } from "../api/types";
+import { consentStatus } from "../api/types";
 import { useCabinet } from "../state/hooks";
 import { store } from "../state/store";
 import { Button, Sheet } from "./primitives";
@@ -42,19 +42,34 @@ export function ConsentPoints() {
 }
 
 /**
- * v1.3 (contract 12): a write came back 403 consent_required although this
- * device thought consent was given (accepted policy changed, consent withdrawn
- * elsewhere...). Asks again; the write is resent once it is accepted.
+ * v1.3 (contract 12): a write came back 403 consent_required (consent withdrawn here or elsewhere,
+ * a new policy version...). Asks again; the write is resent once it is accepted.
+ * v1.4: also opens by itself once per session for a new policy version, and from the banner.
  * Accounts that never consented see the onboarding consent step instead.
  */
 export function ConsentGate() {
   const t = useTranslations("cab.consent");
+  const tp = useTranslations("cab.privacy");
   const tc = useTranslations("cab");
+  const locale = useLocale();
   const ui = useUI();
   const { consentNeeded, auth, me } = useCabinet();
   const [agree, setAgree] = useState(false);
   const [busy, setBusy] = useState(false);
-  const open = consentNeeded && auth === "authed" && hasConsent(me);
+  const status = consentStatus(me);
+  // Accounts that never consented answer the onboarding consent step instead.
+  const open = consentNeeded && auth === "authed" && !!me && status !== "none";
+
+  useEffect(() => {
+    if (auth !== "authed" || status !== "reconsent") return;
+    try {
+      if (sessionStorage.getItem("sana:reconsent-asked") === me?.consent?.currentVersion) return;
+      sessionStorage.setItem("sana:reconsent-asked", me?.consent?.currentVersion ?? "");
+    } catch {
+      /* private mode: ask anyway */
+    }
+    store.askConsent();
+  }, [auth, status, me?.consent?.currentVersion]);
 
   async function accept() {
     setBusy(true);
@@ -69,6 +84,14 @@ export function ConsentGate() {
     }
   }
 
+  const title = status === "reconsent" ? tp("reconsentTitle") : status === "withdrawn" ? tp("againTitle") : t("title");
+  const body =
+    status === "reconsent"
+      ? tp("reconsentBody")
+      : status === "withdrawn" && me?.consent?.withdrawnAt
+        ? tp("againBody", { date: new Intl.DateTimeFormat(locale, { day: "numeric", month: "long" }).format(new Date(me.consent.withdrawnAt)) })
+        : t("body");
+
   return (
     <Sheet
       open={open}
@@ -78,13 +101,13 @@ export function ConsentGate() {
       }}
       title={
         <span className="inline-flex items-center gap-2">
-          <ShieldCheck className="h-5 w-5 text-c-accent" aria-hidden /> {t("title")}
+          <ShieldCheck className="h-5 w-5 text-c-accent" aria-hidden /> {title}
         </span>
       }
       labelClose={t("later")}
     >
       <div className="flex flex-col gap-4" data-consent-gate>
-        <p className="text-base text-c-muted">{t("body")}</p>
+        <p className="text-base text-c-muted">{body}</p>
         <ConsentPoints />
         <ConsentCheck checked={agree} onChange={setAgree} tone="raised" />
         <Button size="lg" block disabled={!agree} loading={busy} onClick={() => void accept()}>
@@ -102,5 +125,21 @@ export function ConsentGate() {
         </Button>
       </div>
     </Sheet>
+  );
+}
+
+/** v1.4: a quiet reminder on every screen while consent is withdrawn or a new text waits. */
+export function ConsentBanner() {
+  const t = useTranslations("cab.privacy");
+  const { me, auth } = useCabinet();
+  const status = consentStatus(me);
+  if (auth !== "authed" || (status !== "withdrawn" && status !== "reconsent")) return null;
+  return (
+    <div className="mb-4 rounded-2xl bg-c-raised p-4" role="status" data-consent-banner>
+      <p className="text-sm text-c-ink">{status === "withdrawn" ? t("bannerWithdrawn") : t("bannerReconsent")}</p>
+      <Button variant="soft" size="sm" className="mt-3" onClick={() => store.askConsent()}>
+        {t("bannerAction")}
+      </Button>
+    </div>
   );
 }

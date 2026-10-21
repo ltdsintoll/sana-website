@@ -16,6 +16,7 @@
 //   locked...@...    -> email verify answers 429 too_many_attempts (lockout)
 //   noconsent...@... -> has data but never accepted the GDPR consent (v1.3):
 //                       writes answer 403 consent_required until accepted
+//   reconsent...@... -> accepted an older policy version (v1.4): asked again
 
 import type {
   CalendarDay,
@@ -118,7 +119,10 @@ function seed(kind: string, email: string | null, telegram: Me["telegram"]): Moc
     languageCode: null,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     gdprConsent: kind !== "new" && kind !== "noconsent",
-    consent: consentState(kind !== "new" && kind !== "noconsent"),
+    consent:
+      kind === "reconsent"
+        ? { ...consentState(true), version: "2026-04-01", currentVersion: CONSENT_VERSION, needsReconsent: true }
+        : consentState(kind !== "new" && kind !== "noconsent"),
     mode: kind === "pregnant" ? "PREGNANCY" : "BASIC",
     hasProfile: kind !== "new",
     createdAt: addDays(t, -200) + "T10:00:00.000Z",
@@ -186,7 +190,7 @@ function seed(kind: string, email: string | null, telegram: Me["telegram"]): Moc
 const CONSENT_VERSION = "2026-10-20";
 
 function consentState(accepted: boolean): Consent {
-  return { accepted, acceptedAt: accepted ? nowIso() : null, version: accepted ? CONSENT_VERSION : null, currentVersion: CONSENT_VERSION };
+  return { accepted, acceptedAt: accepted ? nowIso() : null, version: accepted ? CONSENT_VERSION : null, currentVersion: CONSENT_VERSION, needsReconsent: false, withdrawnAt: null };
 }
 
 /** v1.3 (contract 12): POST/PUT/PATCH that store health data need consent. */
@@ -196,12 +200,12 @@ function needsConsent(method: string, p: string): boolean {
 }
 
 function hasConsented(u: MockUser): boolean {
-  return u.me.consent ? u.me.consent.accepted : u.me.gdprConsent;
+  return u.me.consent ? u.me.consent.accepted && !u.me.consent.needsReconsent : u.me.gdprConsent;
 }
 
 function kindFromEmail(email: string): string {
   const local = email.split("@")[0].toLowerCase();
-  for (const k of ["new", "period", "late", "pregnant", "partner", "noconsent"]) if (local.startsWith(k)) return k;
+  for (const k of ["new", "period", "late", "pregnant", "partner", "noconsent", "reconsent"]) if (local.startsWith(k)) return k;
   return "regular";
 }
 
@@ -560,6 +564,25 @@ function route(db: Db, method: string, path: string, b: Record<string, unknown>,
     return ok(M === "POST /api/v2/consent" ? { consent: u.me.consent } : { ok: true, consent: u.me.consent });
   }
   if (M === "GET /api/v2/consent") return ok({ consent: u.me.consent ?? consentState(u.me.gdprConsent) });
+  if (M === "POST /api/v2/consent/withdraw") {
+    u.me.gdprConsent = false;
+    u.me.consent = { ...(u.me.consent ?? consentState(false)), accepted: false, needsReconsent: false, withdrawnAt: nowIso() };
+    return ok({ consent: u.me.consent });
+  }
+  if (M === "GET /api/v2/export") {
+    return ok({
+      format: "sana-export",
+      formatVersion: 1,
+      exportedAt: nowIso(),
+      account: { id: u.me.id, email: u.me.email, telegram: u.me.telegram, timezone: u.me.timezone },
+      consent: u.me.consent,
+      periods: sorted(u).map((e) => ({ startYmd: e.startYmd, endYmd: e.endYmd, source: e.source })),
+      dayLogs: Object.values(u.logs),
+      symptoms: u.symptoms,
+      pregnancies: u.pregnancies,
+      notifications: u.notifications,
+    });
+  }
   if (needsConsent(method, p) && !hasConsented(u)) return err(403, "consent_required", "Accept the privacy policy first");
   if (M === "POST /api/gdpr/delete-account") {
     delete db.users[u.me.id];
@@ -663,7 +686,11 @@ function route(db: Db, method: string, path: string, b: Record<string, unknown>,
           else adj.startYmd = d;
           adj.updatedAt = nowIso();
         } else {
-          u.episodes.push({ id: id(), startYmd: d, endYmd: d === t ? null : d, source: "user", reviewReason: null, updatedAt: nowIso() });
+          // Like the server (cycle-core togglePeriodDay): a lone day near another start, else a period of the usual length.
+          const near = u.episodes.some((e) => Math.abs(diffDays(e.startYmd, d)) < 15);
+          const autoEnd = addDays(d, pl - 1);
+          const end = near ? d : autoEnd >= t ? null : autoEnd;
+          u.episodes.push({ id: id(), startYmd: d, endYmd: end, source: "user", reviewReason: null, updatedAt: nowIso() });
         }
       }
     } else if (inside) {
@@ -887,6 +914,27 @@ function partnerView(db: Db, l: MockLink): PartnerView {
   const thisMonth = t.slice(0, 7);
   const prevMonth = addDays(`${thisMonth}-01`, -1).slice(0, 7);
   const tk = kindOf(t);
+  const sharingPaused = !hasConsented(o) && !!o.me.consent?.withdrawnAt;
+  if (sharingPaused) {
+    return {
+      sharingPaused: true,
+      partnerConsent: { acceptedAt: nowIso(), version: CONSENT_VERSION, current: true },
+      today: t,
+      dayType: "nothing",
+      daysUntilPeriod: null,
+      cycleState: "hidden",
+      lateDays: null,
+      ongoingPeriod: null,
+      ownerName: ownerName(o),
+      ownerPhotoUrl: null,
+      ownerIrregular: false,
+      permissions: pr,
+      sexDotsThisMonth: [],
+      sexDotsLastMonth: [],
+      monthDays: [],
+      prevMonthDays: [],
+    };
+  }
   const paused = s.state === "pregnancy";
   const cycleState: PartnerView["cycleState"] = paused
     ? "paused"
@@ -896,8 +944,10 @@ function partnerView(db: Db, l: MockLink): PartnerView {
         ? "paused"
         : (s.state as PartnerView["cycleState"]);
   return {
+    sharingPaused: false,
+    partnerConsent: { acceptedAt: nowIso(), version: CONSENT_VERSION, current: true },
     today: t,
-    dayType: paused ? "nothing" : tk === "period" ? "period" : tk === "fertile" ? "fertile" : tk === "pms" ? "pms" : pr.showPeriod ? "safe" : "nothing",
+    dayType: paused ? "nothing" : tk === "period" ? "period" : tk === "fertile" ? "fertile" : tk === "pms" ? "pms" : s.state === "expected" || s.state === "period" ? "safe" : "nothing",
     daysUntilPeriod: pr.showPeriod && s.state === "expected" ? s.daysUntilExpected : null,
     cycleState,
     lateDays: pr.showPeriod && s.state === "late" ? s.lateDays : null,
