@@ -6,6 +6,7 @@ import { useState, type ReactNode } from "react";
 import { Link, useRouter } from "@/i18n/navigation";
 import type { CycleStatus, Ymd } from "../api/types";
 import { addDays, diffDays, fmtDate, fmtRange } from "../lib/dates";
+import { expectedHeadline, lateSubline } from "../lib/forecast";
 import { useCabinet } from "../state/hooks";
 import { setSelectedDay, useCycleView } from "../state/view";
 import { DayCell, InstallHint, PastDatePicker, kindLabelKey } from "../ui/cycle";
@@ -161,16 +162,18 @@ function StatusHero({ status: s, today }: { status: CycleStatus; today: Ymd }) {
       );
       break;
     }
-    case "expected":
+    case "expected": {
       eyebrow = t("today.nextEyebrow");
-      big = s.daysUntilExpected === 0 ? t("today.expectedToday") : t("today.inDays", { count: s.daysUntilExpected ?? 0 });
-      sub = s.expectedStartYmd ? fmtDate(s.expectedStartYmd, locale, { weekday: "long", day: "numeric", month: "long" }) : null;
+      const h = expectedHeadline(s, t, locale);
+      big = h.big;
+      sub = h.sub;
       break;
+    }
     case "late":
       tone = "bg-c-late-soft";
       eyebrow = t("today.lateEyebrow");
       big = t("today.lateDays", { count: s.lateDays ?? 0 });
-      sub = s.expectedStartYmd ? t("today.wasExpected", { date: fmtDate(s.expectedStartYmd, locale) }) : null;
+      sub = lateSubline(s, t, locale);
       extra = (
         <p className="mt-3 text-sm text-c-muted">
           {t("today.lateHint")}{" "}
@@ -244,7 +247,13 @@ function PhaseLine({ status: s }: { status: CycleStatus }) {
           {t(`phase.${s.phase}`)}
         </span>
       ) : null}
-      {s.confidence === "low" || s.confidence === "none" ? <span className="text-xs text-c-subtle">{t("today.lowConfidence")}</span> : null}
+      {s.forecastPrecision === "range" ? (
+        <span className="text-xs text-c-subtle" data-irregular-note>
+          {t("today.irregularNote")}
+        </span>
+      ) : s.confidence === "low" || s.confidence === "none" ? (
+        <span className="text-xs text-c-subtle">{t("today.lowConfidence")}</span>
+      ) : null}
       {fertile ? <p className="w-full text-xs text-c-subtle">{t("common.notContraception")}</p> : null}
     </div>
   );

@@ -152,7 +152,13 @@ export type CycleStatus = {
   pmsWindow: Range | null;
   confidence: "high" | "medium" | "low" | "none";
   pregnancy: { startYmd: Ymd; dueYmd: Ymd | null; week: number; day: number } | null;
+  /** v1.5: likely first day of the next period, earliest..latest (start = end unless "range"). */
+  expectedStartRange?: Range | null;
+  /** v1.5: how precisely the next start is known; decides the wording ("in 5 days" / "about" / "in 3-9 days"). */
+  forecastPrecision?: ForecastPrecision | null;
 };
+
+export type ForecastPrecision = "exact" | "approximate" | "range";
 
 export type CycleStats = {
   cycleLength: number;
@@ -309,6 +315,8 @@ export type PartnerView = {
   today: Ymd;
   dayType: "period" | "fertile" | "pms" | "safe" | "nothing";
   daysUntilPeriod: number | null;
+  /** v1.5: wording of daysUntilPeriod; "range": an irregular cycle, minDays..maxDays. */
+  periodForecast?: { precision: ForecastPrecision; minDays: number; maxDays: number } | null;
   cycleState: "expected" | "period" | "late" | "stale" | "no_data" | "paused" | "hidden";
   lateDays: number | null;
   ongoingPeriod: { dayIndex: number; suggestedTotal: number } | null;

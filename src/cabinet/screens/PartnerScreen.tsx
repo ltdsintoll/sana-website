@@ -7,6 +7,7 @@ import { useRouter } from "@/i18n/navigation";
 import { ApiError, api, isUuid } from "../api/client";
 import { ADVICE_CATEGORIES, type AdviceCategory, type NudgeKind, type PartnerAdvice, type PartnerDayType, type PartnerOfLink, type PartnerView } from "../api/types";
 import { fmtDate, fmtMonth, monthGrid, monthOf, weekStartsOn, weekdayLabels } from "../lib/dates";
+import { partnerExpected } from "../lib/forecast";
 import { getSelectedPartner, setSelectedPartner } from "../state/selectedDay";
 import { FullScreenSpinner, RequireAuth, Screen } from "../ui/layout";
 import { Button, Card, Chip, SectionTitle, Spinner, Switch } from "../ui/primitives";
@@ -148,7 +149,7 @@ function StatusCard({ view: v, name }: { view: PartnerView; name: string }) {
       tone = "bg-c-period-soft";
       break;
     case "expected":
-      big = v.daysUntilPeriod === 0 ? t("expectedToday") : t("inDays", { count: v.daysUntilPeriod ?? 0 });
+      big = partnerExpected(v, t);
       break;
     case "late":
       big = t("late", { count: v.lateDays ?? 0 });
