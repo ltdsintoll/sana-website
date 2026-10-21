@@ -1,6 +1,7 @@
 {
   "header": {
-    "cta": "Open in Telegram"
+    "cta": "Open in Telegram",
+    "signIn": "Sign in"
   },
   "hero": {
     "badge": "Now in beta",

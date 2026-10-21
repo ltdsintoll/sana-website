@@ -7,8 +7,14 @@ export default getRequestConfig(async ({ requestLocale }) => {
     requested && (locales as readonly string[]).includes(requested)
       ? (requested as Locale)
       : defaultLocale;
+  const [site, cab] = await Promise.all([
+    import(`../../messages/${locale}.json`),
+    import(`../../messages/cabinet/${locale}.json`),
+  ]);
   return {
     locale,
-    messages: (await import(`../../messages/${locale}.json`)).default,
+    // `cab` holds the personal cabinet strings; the root layout strips it so
+    // marketing pages do not ship them to the browser.
+    messages: { ...site.default, cab: cab.default },
   };
 });
