@@ -10,6 +10,7 @@
 //   new@...          -> fresh account: consent + onboarding
 //   period@...       -> period ongoing (day 2)
 //   late@...         -> period late by 4 days
+//   irregular@...    -> cycles of 24-35 days: the forecast is a band of days (v1.5)
 //   pregnant@...     -> pregnancy mode
 //   merge...@...     -> linking Telegram answers 409 merge_required first
 //   partner...@...   -> already sees the cycle of a demo partner ("Anna")
@@ -153,8 +154,8 @@ function seed(kind: string, email: string | null, telegram: Me["telegram"]): Moc
     return u;
   }
   // Last start relative to today per demo scenario.
-  const lastStartOffset = kind === "period" ? -1 : kind === "late" ? -33 : kind === "pregnant" ? -60 : -24;
-  const lengths = [29, 27, 30, 28, 29];
+  const lastStartOffset = kind === "period" ? -1 : kind === "late" ? -33 : kind === "pregnant" ? -60 : kind === "irregular" ? -20 : -24;
+  const lengths = kind === "irregular" ? [24, 35, 26, 33, 30] : [29, 27, 30, 28, 29];
   let start = addDays(t, lastStartOffset);
   const starts: Ymd[] = [start];
   for (const L of lengths) {
@@ -205,7 +206,7 @@ function hasConsented(u: MockUser): boolean {
 
 function kindFromEmail(email: string): string {
   const local = email.split("@")[0].toLowerCase();
-  for (const k of ["new", "period", "late", "pregnant", "partner", "noconsent", "reconsent"]) if (local.startsWith(k)) return k;
+  for (const k of ["new", "period", "late", "pregnant", "partner", "noconsent", "reconsent", "irregular"]) if (local.startsWith(k)) return k;
   return "regular";
 }
 
@@ -323,8 +324,19 @@ function build(u: MockUser, from?: Ymd | null, to?: Ymd | null): CycleResponse {
     pmsWindow: null,
     confidence: stats.cyclesCount >= 3 ? "high" : stats.cyclesCount >= 1 ? "medium" : last ? "low" : "none",
     pregnancy: null,
+    expectedStartRange: null,
+    forecastPrecision: null,
   };
   let next: Ymd | null = null;
+  // v1.5 forecast precision (same rules as the core): irregular -> band [start+min, start+max],
+  // 2+ cycles within 3 days -> exact, otherwise approximate.
+  const minL = stats.cycleLengthMin ?? C - 3;
+  const maxL = stats.cycleLengthMax ?? C + 3;
+  const precision: NonNullable<CycleStatus["forecastPrecision"]> = stats.irregular
+    ? "range"
+    : stats.cyclesCount >= 2 && Math.max(maxL, C) - Math.min(minL, C) <= 3
+      ? "exact"
+      : "approximate";
   if (preg) {
     const d = diffDays(t, preg.startYmd);
     status.state = "pregnancy";
@@ -333,6 +345,7 @@ function build(u: MockUser, from?: Ymd | null, to?: Ymd | null): CycleResponse {
   } else if (last) {
     status.cycleDay = diffDays(t, last.startYmd) + 1;
     next = addDays(last.startYmd, C);
+    const lateAt = stats.irregular ? addDays(last.startYmd, Math.max(maxL, C)) : next;
     const lastEnd = effEnd(last, P);
     const ov = addDays(next, -14);
     if (t >= last.startYmd && t <= lastEnd && (last.endYmd === null || t <= last.endYmd)) {
@@ -340,20 +353,25 @@ function build(u: MockUser, from?: Ymd | null, to?: Ymd | null): CycleResponse {
       status.phase = "menstrual";
       status.periodDay = diffDays(t, last.startYmd) + 1;
       status.ongoingEpisodeId = last.endYmd === null ? last.id : null;
-    } else if (t <= next) {
+    } else if (t <= lateAt) {
       status.state = "expected";
-      status.daysUntilExpected = diffDays(next, t);
+      status.daysUntilExpected = Math.max(0, diffDays(next, t));
     } else if (diffDays(t, last.startYmd) > 1.8 * C) {
       status.state = "stale";
-      status.lateDays = diffDays(t, next);
+      status.lateDays = diffDays(t, lateAt);
       next = null;
     } else {
       status.state = "late";
       status.phase = "late";
-      status.lateDays = diffDays(t, next);
+      status.lateDays = diffDays(t, lateAt);
     }
     if (next) {
-      status.expectedStartYmd = next;
+      status.expectedStartYmd = status.state === "late" ? lateAt : next;
+      status.forecastPrecision = precision;
+      status.expectedStartRange =
+        precision === "range"
+          ? { startYmd: addDays(last.startYmd, minL), endYmd: addDays(last.startYmd, Math.max(maxL, C)) }
+          : { startYmd: next, endYmd: next };
       const widen = stats.irregular ? 3 : 0;
       status.expectedWindow =
         status.state === "late"
@@ -949,6 +967,14 @@ function partnerView(db: Db, l: MockLink): PartnerView {
     today: t,
     dayType: paused ? "nothing" : tk === "period" ? "period" : tk === "fertile" ? "fertile" : tk === "pms" ? "pms" : s.state === "expected" || s.state === "period" ? "safe" : "nothing",
     daysUntilPeriod: pr.showPeriod && s.state === "expected" ? s.daysUntilExpected : null,
+    periodForecast:
+      pr.showPeriod && s.state === "expected" && s.expectedStartRange && s.forecastPrecision
+        ? {
+            precision: s.forecastPrecision,
+            minDays: Math.max(0, diffDays(s.expectedStartRange.startYmd, t)),
+            maxDays: Math.max(0, diffDays(s.expectedStartRange.endYmd, t)),
+          }
+        : null,
     cycleState,
     lateDays: pr.showPeriod && s.state === "late" ? s.lateDays : null,
     ongoingPeriod: pr.showPeriod && s.state === "period" ? { dayIndex: s.periodDay ?? 1, suggestedTotal: c.stats.periodLength } : null,
@@ -1086,6 +1112,37 @@ function routePartners(db: Db, u: MockUser, M: string, p: string, b: Record<stri
     return ok({ ok: true, remaining: 3 - l.nudges.length });
   }
   return null;
+}
+
+/**
+ * Tests: the account was merged into another one on another device (linking
+ * email <-> Telegram). The session now points to the survivor, which lists
+ * the old id in `mergedAccountIds` (API v1.5). Returns the new id.
+ */
+export function simulateMergeElsewhere(): string | null {
+  const db = load();
+  const u = db.session ? db.users[db.session] : undefined;
+  if (!u) return null;
+  const oldId = u.me.id;
+  const newId = id();
+  u.me = { ...u.me, id: newId, mergedAccountIds: [...(u.me.mergedAccountIds ?? []), oldId] };
+  delete db.users[oldId];
+  db.users[newId] = u;
+  for (const l of Object.values(db.links ?? {})) {
+    if (l.ownerId === oldId) l.ownerId = newId;
+    if (l.partnerUserId === oldId) l.partnerUserId = newId;
+  }
+  db.session = newId;
+  bump(u);
+  save(db);
+  return newId;
+}
+
+/** Tests: the session ended on the server (expired / revoked elsewhere). */
+export function expireSession(): void {
+  const db = load();
+  db.session = null;
+  save(db);
 }
 
 /** Lets demo/tests simulate a change made in Telegram (bumps dataVersion). */

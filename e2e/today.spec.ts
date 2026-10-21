@@ -57,3 +57,21 @@ test("new account: consent and onboarding create the first period", async ({ pag
   await page.waitForURL(/\/app\/today/);
   await expect(page.getByText("День 2")).toBeVisible();
 });
+
+test("irregular cycle: a band of days, never 'expected today'; steady cycles keep the exact day", async ({ page }) => {
+  await loginToToday(page, "irregular@example.com");
+  // Cycles of 24-35 days, last start 20 days ago: the next one in 4-15 days.
+  await expect(hero(page)).toContainText("Через 4–15 дней");
+  await expect(hero(page)).toContainText(/Между .+ и .+/);
+  await expect(page.locator("[data-irregular-note]")).toContainText("Цикл нерегулярный");
+  await expect(page.getByText("Ожидаются сегодня")).toHaveCount(0);
+  await shot(page, "14-today-irregular-range");
+  await page.goto("/en/app/today");
+  await expect(hero(page)).toContainText("In 4–15 days");
+  await page.goto("/ru/app/logout");
+  await page.waitForURL(/login/);
+  await loginToToday(page, "steady@example.com");
+  await expect(hero(page)).toContainText(/Через \d+ д/);
+  await expect(hero(page)).not.toContainText(/Примерно|–|Между/);
+  await expect(page.locator("[data-irregular-note]")).toHaveCount(0);
+});

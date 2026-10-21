@@ -213,7 +213,16 @@
     "ovulation": "Ovulación",
     "pms": "SPM",
     "upcoming": "Próximamente",
-    "forecastNote": "Previsión según tu historial. No es un método anticonceptivo."
+    "forecastNote": "Previsión según tu historial. No es un método anticonceptivo.",
+    "expectedTodayApprox": "Posiblemente hoy",
+    "inDaysApprox": "{count, plural, one {En # día aprox.} other {En # días aprox.}}",
+    "aroundDate": "Hacia el {date}",
+    "inDaysRange": "{count, plural, one {En {min}–# días} other {En {min}–# días}}",
+    "rangeDates": "Entre el {from} y el {to}",
+    "anyDayNow": "Cualquier día",
+    "untilDate": "Hasta el {date}",
+    "wasExpectedRange": "Solía empezar antes del {date}",
+    "irregularNote": "Tu ciclo varía, por eso mostramos un intervalo y no un día exacto"
   },
   "phase": {
     "menstrual": "Periodo",
@@ -609,7 +618,11 @@
     "nudgeLimit": "Ya van 3 hoy. Inténtalo mañana.",
     "leave": "Dejar de ver este ciclo",
     "leaveTitle": "¿Dejar de ver?",
-    "leaveBody": "Dejarás de ver el ciclo de {name}. Puede invitarte de nuevo."
+    "leaveBody": "Dejarás de ver el ciclo de {name}. Puede invitarte de nuevo.",
+    "expectedTodayApprox": "El periodo puede empezar hoy",
+    "inDaysApprox": "{count, plural, one {Periodo en # día aprox.} other {Periodo en # días aprox.}}",
+    "inDaysRange": "{count, plural, one {Periodo en {min}–# días} other {Periodo en {min}–# días}}",
+    "anyDayNow": "El periodo puede empezar cualquier día"
   },
   "invite": {
     "title": "Invitación de pareja",

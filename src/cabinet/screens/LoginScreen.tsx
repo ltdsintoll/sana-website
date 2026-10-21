@@ -51,7 +51,7 @@ export default function LoginScreen({ embedded = false, intro }: { embedded?: bo
       const r = await api.telegramWidget(u);
       await done(r.user);
     } catch (e) {
-      setWidgetError(e instanceof ApiError && (e.code === "auth_expired" || e.code === "invalid_signature") ? t("login.errWidget") : t("errors.generic"));
+      setWidgetError(e instanceof ApiError && (e.code === "auth_expired" || e.code === "invalid_signature" || e.code === "auth_replayed") ? t("login.errWidget") : t("errors.generic"));
     }
   }
 

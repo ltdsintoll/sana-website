@@ -222,6 +222,9 @@ function LinkTelegram({
         setWidgetMerge({ data, details: e.details as MergeDetails });
       else if (e instanceof ApiError && e.code === "account_conflict")
         setError(t("link.conflict"));
+      // v1.5: a widget proof works once (auth_replayed); an old or bad one: ask to press the button again.
+      else if (e instanceof ApiError && ["auth_expired", "invalid_signature", "auth_replayed"].includes(e.code))
+        setError(t("login.errWidget"));
       else setError(t("errors.generic"));
     } finally {
       setBusy(false);
@@ -817,7 +820,10 @@ function SessionCard() {
           if (
             !(await ui.confirm({
               title: t("settings.logoutAll"),
-              body: t("settings.logoutAllText"),
+              // Unsent changes of this device are discarded with the session: say so.
+              body: pending.length
+                ? `${t("settings.logoutAllText")} ${t("settings.logoutPending", { count: pending.length })}`
+                : t("settings.logoutAllText"),
               confirmLabel: t("settings.logoutAll"),
             }))
           )

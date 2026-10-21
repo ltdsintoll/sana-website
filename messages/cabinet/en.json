@@ -213,7 +213,16 @@
     "ovulation": "Ovulation",
     "pms": "PMS",
     "upcoming": "Coming up",
-    "forecastNote": "Forecast from your history. Not a method of contraception."
+    "forecastNote": "Forecast from your history. Not a method of contraception.",
+    "expectedTodayApprox": "Possibly today",
+    "inDaysApprox": "{count, plural, one {In about # day} other {In about # days}}",
+    "aroundDate": "Around {date}",
+    "inDaysRange": "{count, plural, one {In {min}–# days} other {In {min}–# days}}",
+    "rangeDates": "Between {from} and {to}",
+    "anyDayNow": "Any day now",
+    "untilDate": "Until {date}",
+    "wasExpectedRange": "Usually started by {date}",
+    "irregularNote": "Your cycle varies, so we show a range instead of one day"
   },
   "phase": {
     "menstrual": "Period",
@@ -609,7 +618,11 @@
     "nudgeLimit": "That's 3 for today. Try again tomorrow.",
     "leave": "Stop viewing this cycle",
     "leaveTitle": "Stop viewing?",
-    "leaveBody": "You will no longer see {name}'s cycle. She can invite you again."
+    "leaveBody": "You will no longer see {name}'s cycle. She can invite you again.",
+    "expectedTodayApprox": "Period may start today",
+    "inDaysApprox": "{count, plural, one {Period in about # day} other {Period in about # days}}",
+    "inDaysRange": "{count, plural, one {Period in {min}–# days} other {Period in {min}–# days}}",
+    "anyDayNow": "Period may start any day now"
   },
   "invite": {
     "title": "Partner invite",

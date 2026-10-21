@@ -47,7 +47,11 @@ export default function CabinetRoot({ children }: { children: ReactNode }) {
     navigator.serviceWorker?.addEventListener("message", onSwMessage);
     if (IS_MOCK) {
       void import("../api/mock").then((m) => {
-        (window as unknown as { __sanaMock: unknown }).__sanaMock = { simulateRemoteChange: m.simulateRemoteChange };
+        (window as unknown as { __sanaMock: unknown }).__sanaMock = {
+          simulateRemoteChange: m.simulateRemoteChange,
+          simulateMergeElsewhere: m.simulateMergeElsewhere,
+          expireSession: m.expireSession,
+        };
       });
     }
     return () => navigator.serviceWorker?.removeEventListener("message", onSwMessage);
