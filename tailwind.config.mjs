@@ -7,18 +7,20 @@ const config = {
   theme: {
     extend: {
       colors: {
-        accent: { DEFAULT: "#8B7FD6", soft: "#EDE9FB", dark: "#6B5FB8" },
+        // DEFAULT is decorative (icons, rings, gradients). Text and filled buttons
+        // use dark/deep: >= 4.5:1 with white and on soft/lavender surfaces (WCAG AA).
+        accent: { DEFAULT: "#8B7FD6", soft: "#EDE9FB", dark: "#6457B3", deep: "#54489F" },
         period: "#C89BC4",
         text: {
           DEFAULT: "#1A1A1F",
-          muted: "#6B6B73",
-          subtle: "#A0A0A8",
+          muted: "#64646C",
+          subtle: "#6E6E77",
         },
         border: "#EFEFF2",
         ink: {
           DEFAULT: "#1A1A1F",
-          muted: "#6B6B73",
-          subtle: "#A0A0A8",
+          muted: "#64646C",
+          subtle: "#6E6E77",
         },
         surface: {
           DEFAULT: "#FFFFFF",

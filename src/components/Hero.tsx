@@ -27,7 +27,7 @@ export default function Hero() {
                 href="https://t.me/sanacyclebot"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="bg-accent hover:bg-accent-dark inline-flex items-center justify-center rounded-full px-6 py-3.5 text-sm font-medium text-white transition-colors"
+                className="bg-accent-dark hover:bg-accent-deep inline-flex items-center justify-center rounded-full px-6 py-3.5 text-sm font-medium text-white transition-colors"
               >
                 {t("ctaPrimary")}
               </a>

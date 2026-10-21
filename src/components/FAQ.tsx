@@ -15,7 +15,7 @@ export default function FAQ() {
     <section className="py-24 md:py-32">
       <div className="mx-auto max-w-3xl px-6">
         <div className="mb-14 text-center">
-          <div className="text-accent mb-3 text-xs font-medium tracking-widest uppercase">
+          <div className="text-accent-dark mb-3 text-xs font-medium tracking-widest uppercase">
             {t("eyebrow")}
           </div>
           <h2 className="text-text text-4xl font-light tracking-tight md:text-5xl">
@@ -30,6 +30,9 @@ export default function FAQ() {
               <div key={key}>
                 <button
                   type="button"
+                  id={`faq-${key}-q`}
+                  aria-expanded={isOpen}
+                  aria-controls={`faq-${key}-a`}
                   onClick={() => setOpen(isOpen ? null : key)}
                   className="group flex w-full items-start justify-between gap-6 py-6 text-left"
                 >
@@ -39,11 +42,13 @@ export default function FAQ() {
                   <span className="mt-1 flex-shrink-0">
                     {isOpen ? (
                       <Minus
+                        aria-hidden
                         className="text-accent h-5 w-5"
                         strokeWidth={1.5}
                       />
                     ) : (
                       <Plus
+                        aria-hidden
                         className="text-text-muted h-5 w-5"
                         strokeWidth={1.5}
                       />
@@ -53,6 +58,9 @@ export default function FAQ() {
                 <AnimatePresence initial={false}>
                   {isOpen && (
                     <motion.div
+                      id={`faq-${key}-a`}
+                      role="region"
+                      aria-labelledby={`faq-${key}-q`}
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: "auto", opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}

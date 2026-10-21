@@ -29,7 +29,7 @@ export default function Header() {
             href="https://t.me/sanacyclebot"
             target="_blank"
             rel="noopener noreferrer"
-            className="bg-accent hover:bg-accent-dark hidden items-center rounded-full px-4 py-2 text-sm font-medium text-white transition-colors sm:inline-flex"
+            className="bg-accent-dark hover:bg-accent-deep hidden items-center rounded-full px-4 py-2 text-sm font-medium text-white transition-colors sm:inline-flex"
           >
             {t("cta")}
           </a>

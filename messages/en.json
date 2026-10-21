@@ -142,6 +142,7 @@
     "title": "Get updates when we ship.",
     "subtitle": "One email when Sana launches publicly. No newsletter spam, no marketing sequences.",
     "placeholder": "you@example.com",
+    "label": "Email address",
     "submit": "Notify me",
     "loading": "Sending…",
     "success": "You're on the list. We'll be in touch.",

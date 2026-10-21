@@ -22,7 +22,7 @@ export default function ScreenshotsGallery() {
     <section className="overflow-hidden py-24 md:py-32">
       <div className="mx-auto max-w-7xl px-6">
         <div className="mx-auto mb-16 max-w-2xl text-center">
-          <div className="text-accent mb-3 text-xs font-medium tracking-widest uppercase">
+          <div className="text-accent-dark mb-3 text-xs font-medium tracking-widest uppercase">
             {t("eyebrow")}
           </div>
           <h2 className="text-text text-4xl font-light tracking-tight md:text-5xl">
@@ -35,7 +35,13 @@ export default function ScreenshotsGallery() {
       </div>
 
       <div className="relative">
-        <div className="scrollbar-hide flex snap-x snap-mandatory gap-6 overflow-x-auto px-6 pb-8 md:gap-8 md:px-12">
+        {/* Focusable so the horizontal scroller can be scrolled with the keyboard. */}
+        <div
+          role="region"
+          aria-label={t("title")}
+          tabIndex={0}
+          className="scrollbar-hide focus-visible:ring-accent-dark flex snap-x snap-mandatory gap-6 overflow-x-auto px-6 pb-8 focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset md:gap-8 md:px-12"
+        >
           {screens.map((screen, i) => (
             <motion.div
               key={screen.key}
