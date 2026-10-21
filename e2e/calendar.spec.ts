@@ -30,8 +30,14 @@ test("calendar: day sheet, read-only future, one-tap edit with undo", async ({ p
   await cells.nth(idx - 1).click();
   await expect(toast(page)).toContainText("месячные отмечены");
   await shot(page, "06-calendar-edit-mode");
+  // A lone past day starts a period that is still going today: both days are marked.
+  await expect(cells.nth(idx - 1)).toHaveAttribute("aria-label", /: Месячные$/);
+  await expect(cells.nth(idx)).toHaveAttribute("aria-label", /: Месячные$/);
   await page.getByRole("button", { name: "Отменить" }).click();
   await expect(toast(page)).toContainText("Отменено");
+  // Undo removes the whole new period, not just the tapped day.
+  await expect(cells.nth(idx - 1)).not.toHaveAttribute("aria-label", /: Месячные$/);
+  await expect(cells.nth(idx)).not.toHaveAttribute("aria-label", /: Месячные$/);
 });
 
 test("long period guard asks before a period longer than 10 days (contract 11)", async ({ page }) => {

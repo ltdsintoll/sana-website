@@ -663,7 +663,11 @@ function route(db: Db, method: string, path: string, b: Record<string, unknown>,
           else adj.startYmd = d;
           adj.updatedAt = nowIso();
         } else {
-          u.episodes.push({ id: id(), startYmd: d, endYmd: d === t ? null : d, source: "user", reviewReason: null, updatedAt: nowIso() });
+          // Like the server (cycle-core togglePeriodDay): a lone day near another start, else a period of the usual length.
+          const near = u.episodes.some((e) => Math.abs(diffDays(e.startYmd, d)) < 15);
+          const autoEnd = addDays(d, pl - 1);
+          const end = near ? d : autoEnd >= t ? null : autoEnd;
+          u.episodes.push({ id: id(), startYmd: d, endYmd: end, source: "user", reviewReason: null, updatedAt: nowIso() });
         }
       }
     } else if (inside) {
@@ -897,7 +901,7 @@ function partnerView(db: Db, l: MockLink): PartnerView {
         : (s.state as PartnerView["cycleState"]);
   return {
     today: t,
-    dayType: paused ? "nothing" : tk === "period" ? "period" : tk === "fertile" ? "fertile" : tk === "pms" ? "pms" : pr.showPeriod ? "safe" : "nothing",
+    dayType: paused ? "nothing" : tk === "period" ? "period" : tk === "fertile" ? "fertile" : tk === "pms" ? "pms" : s.state === "expected" || s.state === "period" ? "safe" : "nothing",
     daysUntilPeriod: pr.showPeriod && s.state === "expected" ? s.daysUntilExpected : null,
     cycleState,
     lateDays: pr.showPeriod && s.state === "late" ? s.lateDays : null,

@@ -13,6 +13,34 @@ function restore(before: Episode | undefined, after: Episode): Command | null {
 }
 
 /**
+ * A day tap can create a whole period (a lone past day gets the usual length, or stays ongoing until
+ * today), so toggling the same day back is not always the inverse: compare the episodes instead.
+ */
+function dayPeriodUndo(cmd: Extract<Command, { type: "dayPeriod" }>, before: CycleResponse, after: CycleResponse): Command[] {
+  const prev = new Map(before.episodes.map((e) => [e.id, e]));
+  const next = new Map(after.episodes.map((e) => [e.id, e]));
+  const added = after.episodes.filter((e) => !prev.has(e.id));
+  const removed = before.episodes.filter((e) => !next.has(e.id));
+  const changed = before.episodes.filter((b) => {
+    const a = next.get(b.id);
+    if (!a || (a.startYmd === b.startYmd && a.endYmd === b.endYmd)) return false;
+    // Closing an ongoing period that ran past its length happens on any write; not part of this tap.
+    return !(b.endYmd === null && a.source === "auto_closed" && !contains(a, cmd.ymd));
+  });
+  if (!added.length && !removed.length && !changed.length) return [];
+  if (cmd.isPeriod && added.length === 1 && !removed.length && !changed.length) return [{ type: "periodDelete", id: added[0].id }];
+  if (!cmd.isPeriod && removed.length === 1 && !added.length && !changed.length) {
+    const old = removed[0];
+    // Re-marking a lone day may give it the usual length: set its own end again.
+    return old.endYmd === null
+      ? [{ type: "dayPeriod", ymd: cmd.ymd, isPeriod: true }]
+      : [{ type: "dayPeriod", ymd: cmd.ymd, isPeriod: true }, { type: "periodEnd", date: old.endYmd }];
+  }
+  // Extending, shortening, splitting or bridging by one day: the opposite tap restores it.
+  return [{ type: "dayPeriod", ymd: cmd.ymd, isPeriod: !cmd.isPeriod }];
+}
+
+/**
  * Commands that revert a period mutation. Only the episodes touched by this
  * command (the one around its date, and a previous ongoing one it closed) are
  * restored, so changes made meanwhile in Telegram are never undone by accident.
@@ -25,7 +53,7 @@ export function undoCommands(cmd: Command, before: CycleResponse | null, after: 
 
   switch (cmd.type) {
     case "dayPeriod":
-      return [{ type: "dayPeriod", ymd: cmd.ymd, isPeriod: !cmd.isPeriod }];
+      return dayPeriodUndo(cmd, before, after);
 
     case "periodPatch": {
       const old = prev.get(cmd.id);
