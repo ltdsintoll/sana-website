@@ -312,6 +312,21 @@ class CabinetStore {
     void this.flush();
   }
 
+  /** v1.4: withdraw consent. Data stays readable here; writes ask for consent again. */
+  async withdrawConsent(): Promise<void> {
+    const gen = this.gen;
+    const { consent } = await api.withdrawConsent();
+    if (gen !== this.gen || !this.snap.me) return;
+    this.set({ me: { ...this.snap.me, gdprConsent: false, consent } });
+    this.persist();
+    this.broadcast("consent");
+  }
+
+  /** v1.4: open the consent sheet without a waiting write (banner button, new policy version). */
+  askConsent() {
+    if (this.snap.auth === "authed" && this.snap.me && !this.snap.consentNeeded) this.set({ consentNeeded: true });
+  }
+
   /** "Not now": the waiting writes fail; queued ones stay and ask again later. */
   declineConsent() {
     this.consentSettled(false);

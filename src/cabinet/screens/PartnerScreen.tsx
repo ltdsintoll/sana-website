@@ -131,9 +131,17 @@ function Partner() {
 
 function StatusCard({ view: v, name }: { view: PartnerView; name: string }) {
   const t = useTranslations("cab.partnerView");
+  const tp = useTranslations("cab.privacy");
   const locale = useLocale();
   let big: string;
   let tone = "bg-c-card";
+  if (v.sharingPaused) {
+    return (
+      <section className="rounded-3xl bg-c-card p-5" aria-live="polite" data-sharing-paused>
+        <p className="text-base text-c-ink">{tp("sharingPaused", { name })}</p>
+      </section>
+    );
+  }
   switch (v.cycleState) {
     case "period":
       big = v.ongoingPeriod ? t("periodDay", { day: v.ongoingPeriod.dayIndex }) : t("period");
